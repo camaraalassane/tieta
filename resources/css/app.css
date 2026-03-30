@@ -1,0 +1,20 @@
+/* resources/css/app.css */
+@import 'primeicons/primeicons.css';
+@import '../js/sakai/assets/styles.scss';
+@import '../js/sakai/assets/tailwind.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Couches Tailwind pour PrimeVue */
+@layer tailwind-base, primevue, tailwind-utilities;
+
+@layer tailwind-base {
+    @tailwind base;
+}
+
+@layer tailwind-utilities {
+    @tailwind components;
+    @tailwind utilities;
+}

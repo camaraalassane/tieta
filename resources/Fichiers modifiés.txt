@@ -1,0 +1,7 @@
+C:\laragon\www\Tièta\resources\js\app.js
+kernel.php
+concourMiddleware.php
+creer les fichiers controllers
+creer les fichiers request
+modifier web.php
+modifier certains fichier dans spatie.
