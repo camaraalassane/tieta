@@ -25,15 +25,17 @@ const unreadMsgCount = computed(
 // Couleurs dynamiques basées sur le thème
 const topbarClasses = computed(() => {
     return {
-        'bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50': !isScrolled.value,
-        'bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-800': isScrolled.value,
+        "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50":
+            !isScrolled.value,
+        "bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-800":
+            isScrolled.value,
     };
 });
 
 const logoTextClasses = computed(() => {
     return {
-        'text-emerald-600 dark:text-emerald-400': !isDarkTheme.value,
-        'text-emerald-400': isDarkTheme.value
+        "text-emerald-600 dark:text-emerald-400": !isDarkTheme.value,
+        "text-emerald-400": isDarkTheme.value,
     };
 });
 
@@ -69,15 +71,15 @@ const handleScroll = () => {
 };
 
 onMounted(() => {
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
 });
 
 // Synchronisation du thème
 watch(isDarkTheme, (newVal) => {
     if (newVal) {
-        document.documentElement.classList.add('dark');
+        document.documentElement.classList.add("dark");
     } else {
-        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.remove("dark");
     }
 });
 
@@ -85,21 +87,21 @@ watch(isDarkTheme, (newVal) => {
 const toggleMobileMenu = () => {
     isMobileMenuOpen.value = !isMobileMenuOpen.value;
     if (isMobileMenuOpen.value) {
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = "hidden";
     } else {
-        document.body.style.overflow = '';
+        document.body.style.overflow = "";
     }
 };
 
 const closeMobileMenu = () => {
     isMobileMenuOpen.value = false;
-    document.body.style.overflow = '';
+    document.body.style.overflow = "";
 };
 </script>
 
 <template>
     <!-- Topbar avec tous les effets d'origine -->
-    <div 
+    <div
         class="layout-topbar fixed top-0 left-0 right-0 z-50 transition-all duration-300"
         :class="topbarClasses"
     >
@@ -111,11 +113,18 @@ const closeMobileMenu = () => {
                     <button
                         class="lg:hidden w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center flex-shrink-0 relative z-50"
                         @click="toggleMobileMenu"
-                        :aria-label="isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'"
+                        :aria-label="
+                            isMobileMenuOpen
+                                ? 'Fermer le menu'
+                                : 'Ouvrir le menu'
+                        "
                     >
-                        <i class="pi text-sm sm:text-base" :class="isMobileMenuOpen ? 'pi-times' : 'pi-bars'"></i>
+                        <i
+                            class="pi text-sm sm:text-base"
+                            :class="isMobileMenuOpen ? 'pi-times' : 'pi-bars'"
+                        ></i>
                     </button>
-                    
+
                     <!-- Bouton menu desktop -->
                     <button
                         class="hidden lg:flex w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors items-center justify-center flex-shrink-0"
@@ -132,29 +141,37 @@ const closeMobileMenu = () => {
                     >
                         <!-- Image avec effets -->
                         <div class="relative flex-shrink-0">
-                            <div 
+                            <div
                                 class="absolute inset-0 rounded-full blur-xl transition-all duration-300"
-                                :class="isDarkTheme ? 'bg-emerald-500/30' : 'bg-emerald-500/20'"
+                                :class="
+                                    isDarkTheme
+                                        ? 'bg-emerald-500/30'
+                                        : 'bg-emerald-500/20'
+                                "
                             ></div>
-                            <img 
-                                src="/images/DTTIA.jpeg" 
-                                alt="DTTIA" 
+                            <img
+                                src="/Images/DTTIA.jpeg"
+                                alt="DTTIA"
                                 class="h-8 sm:h-10 md:h-12 w-auto relative rounded-lg shadow-lg group-hover:shadow-emerald-500/20 group-hover:scale-105 transition-all duration-300"
                                 :class="{ 'brightness-90': isDarkTheme }"
                             />
                         </div>
-                        
+
                         <!-- Texte du logo -->
                         <div class="flex flex-col">
-                            <span 
+                            <span
                                 class="font-black text-sm sm:text-base md:text-xl tracking-tight leading-none transition-colors"
                                 :class="logoTextClasses"
                             >
                                 Recrutement
                             </span>
-                            <span 
+                            <span
                                 class="font-medium text-xs sm:text-sm md:text-base tracking-wide transition-colors"
-                                :class="isDarkTheme ? 'text-gray-300' : 'text-gray-700'"
+                                :class="
+                                    isDarkTheme
+                                        ? 'text-gray-300'
+                                        : 'text-gray-700'
+                                "
                             >
                                 DTTIA
                             </span>
@@ -165,18 +182,28 @@ const closeMobileMenu = () => {
                 <!-- Section droite - Actions (avec toutes les fonctionnalités) -->
                 <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     <!-- Contrôle du thème -->
-                    <div class="flex items-center gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                    <div
+                        class="flex items-center gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-xl"
+                    >
                         <button
                             @click="!isDarkTheme && toggleDarkMode()"
                             class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all duration-200 flex items-center justify-center"
-                            :class="!isDarkTheme ? 'bg-white dark:bg-gray-900 shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                            :class="
+                                !isDarkTheme
+                                    ? 'bg-white dark:bg-gray-900 shadow-sm text-emerald-600'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                            "
                         >
                             <i class="pi pi-sun text-xs sm:text-sm"></i>
                         </button>
                         <button
                             @click="isDarkTheme && toggleDarkMode()"
                             class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all duration-200 flex items-center justify-center"
-                            :class="isDarkTheme ? 'bg-white dark:bg-gray-900 shadow-sm text-emerald-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                            :class="
+                                isDarkTheme
+                                    ? 'bg-white dark:bg-gray-900 shadow-sm text-emerald-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                            "
                         >
                             <i class="pi pi-moon text-xs sm:text-sm"></i>
                         </button>
@@ -201,7 +228,11 @@ const closeMobileMenu = () => {
                                 v-if="unreadNotifCount > 0"
                                 class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] sm:text-[10px] rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 flex items-center justify-center ring-2 ring-white dark:ring-gray-900"
                             >
-                                {{ unreadNotifCount > 9 ? '9+' : unreadNotifCount }}
+                                {{
+                                    unreadNotifCount > 9
+                                        ? "9+"
+                                        : unreadNotifCount
+                                }}
                             </span>
                         </button>
 
@@ -226,7 +257,9 @@ const closeMobileMenu = () => {
                                     v-if="unreadNotifCount === 0"
                                     class="px-3 sm:px-4 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm"
                                 >
-                                    <i class="pi pi-bell-off text-xl sm:text-2xl mb-2 opacity-50"></i>
+                                    <i
+                                        class="pi pi-bell-off text-xl sm:text-2xl mb-2 opacity-50"
+                                    ></i>
                                     <p>Aucune notification</p>
                                 </div>
                                 <div
@@ -236,16 +269,26 @@ const closeMobileMenu = () => {
                                 >
                                     <div class="flex gap-2 sm:gap-3">
                                         <div class="flex-shrink-0">
-                                            <div class="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
-                                                <i class="pi pi-info-circle text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs"></i>
+                                            <div
+                                                class="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center"
+                                            >
+                                                <i
+                                                    class="pi pi-info-circle text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs"
+                                                ></i>
                                             </div>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <p class="text-[10px] sm:text-xs text-gray-800 dark:text-gray-200 leading-relaxed line-clamp-2">
+                                            <p
+                                                class="text-[10px] sm:text-xs text-gray-800 dark:text-gray-200 leading-relaxed line-clamp-2"
+                                            >
                                                 {{ notif.data.message }}
                                             </p>
-                                            <span class="text-[8px] sm:text-[10px] text-gray-400 mt-0.5 block">
-                                                {{ formatDate(notif.created_at) }}
+                                            <span
+                                                class="text-[8px] sm:text-[10px] text-gray-400 mt-0.5 block"
+                                            >
+                                                {{
+                                                    formatDate(notif.created_at)
+                                                }}
                                             </span>
                                         </div>
                                     </div>
@@ -268,22 +311,43 @@ const closeMobileMenu = () => {
                                 hideOnOutsideClick: true,
                             }"
                         >
-                            <div class="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0">
-                                {{ page.props.auth.user?.name?.charAt(0) || 'U' }}
+                            <div
+                                class="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0"
+                            >
+                                {{
+                                    page.props.auth.user?.name?.charAt(0) || "U"
+                                }}
                             </div>
-                            <span class="hidden md:block text-xs sm:text-sm font-medium max-w-[100px] truncate">
-                                {{ page.props.auth.user?.name?.split(' ')[0] || 'Utilisateur' }}
+                            <span
+                                class="hidden md:block text-xs sm:text-sm font-medium max-w-[100px] truncate"
+                            >
+                                {{
+                                    page.props.auth.user?.name?.split(" ")[0] ||
+                                    "Utilisateur"
+                                }}
                             </span>
-                            <i class="pi pi-chevron-down text-[10px] sm:text-xs text-gray-400 hidden sm:block"></i>
+                            <i
+                                class="pi pi-chevron-down text-[10px] sm:text-xs text-gray-400 hidden sm:block"
+                            ></i>
                         </button>
 
                         <!-- Menu déroulant -->
                         <div
                             class="hidden bg-white dark:bg-gray-800 shadow-xl absolute right-0 mt-2 w-44 sm:w-48 py-1 rounded-xl border dark:border-gray-700 z-50"
                         >
-                            <div class="px-3 sm:px-4 py-2 sm:py-3 border-b dark:border-gray-700">
-                                <p class="text-xs sm:text-sm font-semibold truncate">{{ page.props.auth.user?.name }}</p>
-                                <p class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">{{ page.props.auth.user?.email }}</p>
+                            <div
+                                class="px-3 sm:px-4 py-2 sm:py-3 border-b dark:border-gray-700"
+                            >
+                                <p
+                                    class="text-xs sm:text-sm font-semibold truncate"
+                                >
+                                    {{ page.props.auth.user?.name }}
+                                </p>
+                                <p
+                                    class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate"
+                                >
+                                    {{ page.props.auth.user?.email }}
+                                </p>
                             </div>
                             <DropdownLink
                                 :href="route('logout')"
@@ -291,7 +355,9 @@ const closeMobileMenu = () => {
                                 as="button"
                                 class="w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-red-600 dark:text-red-400 flex items-center gap-2"
                             >
-                                <i class="pi pi-sign-out text-[10px] sm:text-xs"></i>
+                                <i
+                                    class="pi pi-sign-out text-[10px] sm:text-xs"
+                                ></i>
                                 Déconnexion
                             </DropdownLink>
                         </div>
@@ -310,7 +376,7 @@ const closeMobileMenu = () => {
         leave-from-class="translate-x-0"
         leave-to-class="-translate-x-full"
     >
-        <div 
+        <div
             v-if="isMobileMenuOpen"
             class="fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-900 shadow-2xl z-[60] lg:hidden overflow-y-auto"
         >
@@ -319,7 +385,7 @@ const closeMobileMenu = () => {
     </transition>
 
     <!-- Overlay pour mobile -->
-    <div 
+    <div
         v-if="isMobileMenuOpen"
         class="fixed inset-0 bg-black/50 z-[55] lg:hidden"
         @click="closeMobileMenu"
@@ -353,7 +419,7 @@ const closeMobileMenu = () => {
 }
 
 .theme-toggle::before {
-    content: '';
+    content: "";
     @apply absolute inset-0 bg-emerald-500/10 rounded-lg scale-0 transition-transform duration-300;
 }
 

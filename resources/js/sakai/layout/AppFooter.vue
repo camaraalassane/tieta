@@ -2,24 +2,30 @@
 
 <template>
     <div class="layout-footer py-4 mt-8 border-top-1 border-200">
-        <div class="flex flex-column md:flex-row align-items-center justify-content-between gap-3 w-full px-4">
+        <div
+            class="flex flex-column md:flex-row align-items-center justify-content-between gap-3 w-full px-4"
+        >
             <!-- Nom de l'application avec style harmonisé -->
             <div class="flex align-items-center">
                 <span class="text-2xl font-light tracking-wider text-900">
-                    Cɛ<span class="text-emerald-500 font-bold">TA</span>
+                    DTTIA
+                    <span class="text-emerald-500 font-bold">Recrutement</span>
                 </span>
             </div>
 
             <!-- Copyright et Slogan -->
             <div class="text-center md:text-right">
                 <span class="text-surface-500 text-sm font-medium">
-                    &copy; 2026 — Système de Gestion des Concours. 
-                    <span class="hidden md:inline text-emerald-600 ml-1">Tous droits réservés.</span>
+                    &copy; 2026 — Plateforme de Gestion des Concours.
+                    <span class="hidden md:inline text-emerald-600 ml-1"
+                        >Tous droits réservés.</span
+                    >
                 </span>
             </div>
         </div>
     </div>
 </template>
+
 <style lang="scss" scoped>
 .layout-footer {
     background: var(--surface-card); /* Harmonisé avec vos sakai-card */
@@ -56,4 +62,3 @@
     }
 }
 </style>
-

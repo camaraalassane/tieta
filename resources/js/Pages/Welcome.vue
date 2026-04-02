@@ -1,37 +1,85 @@
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 
 defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
     concours: Array,
     resultats: Array,
+    communiquesActifs: Array,
 });
 
-// Texte dynamique pour la section hero
+// Images pour le carrousel
+const backgroundImages = [
+    "/Images/Voiture.jpg",
+    "/Images/Direction.jpg",
+    "/Images/antenne.JPG",
+    "/Images/Technicien.JPG",
+    "/Images/Batiment.JPG",
+];
+
+// Texte explicatif du fonctionnement de l'application
 const heroTexts = [
     {
-        titre: "Consulter vos candidatures en toute simplicité",
-        sousTitre: "Une plateforme moderne pour centraliser vos inscriptions et suivre vos résultats en temps réel"
+        titre: "Inscrivez-vous gratuitement",
+        sousTitre:
+            "Créez votre compte en quelques clics pour accéder à toutes les fonctionnalités de la plateforme",
     },
     {
-        titre: "Candidatez en quelques clics",
-        sousTitre: "Déposez vos dossiers et suivez l'évolution de vos candidatures depuis votre espace personnel"
+        titre: "Connectez-vous à votre espace",
+        sousTitre:
+            "Accédez à votre tableau de bord personnalisé et gérez vos candidatures",
     },
     {
-        titre: "Résultats instantanés",
-        sousTitre: "Accédez rapidement aux listes des admis et téléchargez les PV officiels"
-    }
+        titre: "Complétez votre profil",
+        sousTitre:
+            "Renseignez vos informations personnelles, votre parcours et vos documents",
+    },
+    {
+        titre: "Postulez aux concours",
+        sousTitre:
+            "Choisissez parmi les concours ouverts et déposez votre candidature en ligne",
+    },
+    {
+        titre: "Suivez vos candidatures en temps réel",
+        sousTitre:
+            "Consultez l'état d'avancement de vos dossiers et recevez des notifications",
+    },
+    {
+        titre: "Consultez et téléchargez les résultats",
+        sousTitre:
+            "Accédez aux listes d'admis et téléchargez les procès-verbaux officiels",
+    },
+    {
+        titre: "Restez informé des actualités",
+        sousTitre:
+            "Consultez les communiqués et annonces de lancement de nouveaux concours",
+    },
 ];
 
 const currentHeroIndex = ref(0);
+const currentImageIndex = ref(0);
+let heroInterval = null;
+let imageInterval = null;
 
 // Rotation automatique du texte toutes les 5 secondes
 onMounted(() => {
-    setInterval(() => {
-        currentHeroIndex.value = (currentHeroIndex.value + 1) % heroTexts.length;
+    heroInterval = setInterval(() => {
+        currentHeroIndex.value =
+            (currentHeroIndex.value + 1) % heroTexts.length;
     }, 5000);
+
+    // Rotation des images toutes les 4 secondes
+    imageInterval = setInterval(() => {
+        currentImageIndex.value =
+            (currentImageIndex.value + 1) % backgroundImages.length;
+    }, 4000);
+});
+
+onUnmounted(() => {
+    if (heroInterval) clearInterval(heroInterval);
+    if (imageInterval) clearInterval(imageInterval);
 });
 
 const getFileName = (path) => {
@@ -39,7 +87,6 @@ const getFileName = (path) => {
     return path.split("/").pop();
 };
 
-// Animation pour les cartes
 const getCardDelay = (index) => {
     return { animationDelay: `${index * 0.1}s` };
 };
@@ -48,298 +95,528 @@ const getCardDelay = (index) => {
 <template>
     <Head title="Accueil - Plateforme Concours DTTIA" />
 
-    <div class="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
-        <!-- Navigation améliorée -->
-        <nav class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-emerald-100 dark:border-gray-700 sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                <!-- Logo avec animation -->
-<div class="flex items-center gap-3 group">
-    <!-- Image avec cadre élégant -->
-    <div class="relative">
-        <!-- Effet de halo -->
-        <div class="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl group-hover:bg-emerald-500/30 transition-all duration-300"></div>
-        
-        <!-- Cadre décoratif -->
-        <div class="relative p-0.5 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl">
-            <div class="bg-white dark:bg-gray-800 rounded-lg p-0.5">
-                <img 
-                    src="/images/DTTIA.jpeg" 
-                    alt="DTTIA" 
-                    class="h-11 w-auto rounded-lg transform group-hover:scale-110 transition-transform duration-300"
-                />
-            </div>
-        </div>
-    </div>
-    
-    <div class="flex items-baseline">
-        <span class="text-2xl font-black tracking-tighter text-emerald-500">
-            DTTIA
-        </span>
-        <span class="mx-2 text-gray-300 dark:text-gray-600">|</span>
-        <span class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Concours
-        </span>
-    </div>
-</div>
-
-                <!-- Menu de navigation -->
-                <div v-if="canLogin" class="flex items-center gap-4">
-                    <Link
-                        v-if="$page.props.auth.user"
-                        :href="route('dashboard')"
-                        class="relative group"
+    <div
+        class="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900"
+    >
+        <!-- Navigation améliorée - responsive -->
+        <nav
+            class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-emerald-100 dark:border-gray-700 sticky top-0 z-50"
+        >
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-0">
+                <div
+                    class="flex flex-col md:flex-row md:justify-between md:items-center gap-2 md:gap-0"
+                >
+                    <!-- Logo -->
+                    <div
+                        class="flex items-center justify-center md:justify-start gap-2 group"
                     >
-                        <span class="btn-primary">
-                            <i class="pi pi-user mr-2"></i>
-                            Mon Espace
-                        </span>
-                    </Link>
-                    <template v-else>
-                        <Link
-                            :href="route('login')"
-                            class="text-gray-600 dark:text-gray-300 hover:text-emerald-500 font-medium transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-emerald-500 after:transition-all hover:after:w-full"
-                        >
-                            Connexion
-                        </Link>
-                        <Link
-                            v-if="canRegister"
-                            :href="route('register')"
-                            class="btn-primary"
-                        >
-                            <i class="pi pi-user-plus mr-2"></i>
-                            S'inscrire
-                        </Link>
-                    </template>
+                        <div class="relative">
+                            <div
+                                class="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl group-hover:bg-emerald-500/30 transition-all duration-300"
+                            ></div>
+                            <div
+                                class="relative p-0.5 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl"
+                            >
+                                <div
+                                    class="bg-white dark:bg-gray-800 rounded-lg p-0.5"
+                                >
+                                    <img
+                                        src="/Images/DTTIA.jpeg"
+                                        alt="DTTIA"
+                                        class="h-9 md:h-10 w-auto rounded-lg transform group-hover:scale-110 transition-transform duration-300"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-start">
+                            <span
+                                class="text-lg md:text-xl font-black tracking-tighter text-emerald-500"
+                                >DTTIA</span
+                            >
+                            <span
+                                class="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                >Recrutement</span
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Menu de navigation -->
+                    <div
+                        class="flex items-center justify-center gap-3 md:gap-4"
+                    >
+                        <template v-if="canLogin">
+                            <Link
+                                v-if="$page.props.auth.user"
+                                :href="route('dashboard')"
+                                class="btn-primary text-sm"
+                            >
+                                <i class="pi pi-user mr-1 text-xs"></i>
+                                <span>Mon Espace</span>
+                            </Link>
+                            <template v-else>
+                                <Link
+                                    :href="route('login')"
+                                    class="text-gray-600 dark:text-gray-300 hover:text-emerald-500 font-medium transition-colors text-sm whitespace-nowrap"
+                                >
+                                    Se connecter
+                                </Link>
+                                <Link
+                                    v-if="canRegister"
+                                    :href="route('register')"
+                                    class="btn-primary text-sm whitespace-nowrap"
+                                >
+                                    <i class="pi pi-user-plus mr-1 text-xs"></i>
+                                    <span>S'inscrire</span>
+                                </Link>
+                            </template>
+                        </template>
+                    </div>
                 </div>
             </div>
         </nav>
 
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <!-- Hero Section Dynamique avec animation -->
-            <section class="mb-16 relative overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent rounded-3xl"></div>
-                <div class="relative bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm p-8 md:p-12 rounded-3xl border border-emerald-100 dark:border-gray-700 shadow-2xl shadow-emerald-500/10">
-                    <!-- Badge dynamique -->
-                    <div class="inline-flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-bold mb-6 animate-bounce">
-                        <span class="w-2 h-2 bg-white rounded-full animate-ping"></span>
-                        Plateforme officielle des concours
-                    </div>
-
-                    <!-- Texte avec transition -->
-                    <transition name="fade" mode="out-in">
-                        <div :key="currentHeroIndex" class="space-y-4">
-                            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold">
-                                <span class="bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
-                                    {{ heroTexts[currentHeroIndex].titre }}
-                                </span>
-                            </h1>
-                            <p class="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl leading-relaxed">
-                                {{ heroTexts[currentHeroIndex].sousTitre }}
-                            </p>
-                        </div>
-                    </transition>
-
-                    <!-- Indicateurs de slide -->
-                    <div class="flex gap-2 mt-8">
-                        <button
-                            v-for="(_, index) in heroTexts"
-                            :key="index"
-                            @click="currentHeroIndex = index"
-                            class="h-2 rounded-full transition-all duration-300"
-                            :class="[
-                                currentHeroIndex === index 
-                                    ? 'w-8 bg-emerald-500' 
-                                    : 'w-2 bg-gray-300 dark:bg-gray-600 hover:bg-emerald-400'
-                            ]"
-                        ></button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section Concours ouverts -->
-            <section class="mb-20">
-                <div class="flex items-center justify-between mb-8">
-                    <h2 class="text-2xl font-bold flex items-center gap-3">
-                        <span class="w-1 h-8 bg-emerald-500 rounded-full"></span>
-                        <span class="bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
-                            Concours ouverts
-                        </span>
-                    </h2>
-                    <span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-full text-sm font-bold">
-                        {{ concours?.length || 0 }} concours actifs
-                    </span>
-                </div>
-
-                <div v-if="concours && concours.length > 0" 
-                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        <main>
+            <!-- Hero Section avec images en arrière-plan défilantes -->
+            <section
+                class="relative h-[90vh] min-h-[600px] flex items-center overflow-hidden"
+            >
+                <!-- Images de fond avec transition - couleurs d'origine conservées -->
+                <div
+                    v-for="(img, index) in backgroundImages"
+                    :key="index"
+                    class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+                    :class="{
+                        'opacity-100 z-0': currentImageIndex === index,
+                        'opacity-0 z-0': currentImageIndex !== index,
+                    }"
                 >
-                    <div
-                        v-for="(item, index) in concours"
-                        :key="item.id"
-                        class="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 hover:-translate-y-1"
-                        :style="getCardDelay(index)"
-                        :class="['animate-fadeInUp']"
-                    >
-                        <!-- Badge date limite -->
-                        <div class="absolute -top-3 right-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg">
-                            {{ new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) }}
+                    <!-- Overlay plus sombre pour meilleure lisibilité -->
+                    <div class="absolute inset-0 bg-black/60 z-10"></div>
+                    <img
+                        :src="img"
+                        :alt="'Image ' + (index + 1)"
+                        class="w-full h-full object-cover"
+                    />
+                </div>
+
+                <!-- Contenu Hero - titres en vert vif, sous-titres en blanc -->
+                <div
+                    class="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+                >
+                    <div class="max-w-4xl mx-auto">
+                        <!-- Badge dynamique -->
+                        <div
+                            class="inline-flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-bold mb-6 animate-bounce"
+                        >
+                            <span
+                                class="w-2 h-2 bg-white rounded-full animate-ping"
+                            ></span>
+                            Plateforme officielle des concours
                         </div>
 
-                        <div class="flex justify-between items-start mb-4">
-                            <span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">
-                                Inscription ouverte
-                            </span>
-
-                            <a
-                                v-if="item.avis"
-                                :href="'/storage/Uploads/Avis/' + getFileName(item.avis)"
-                                target="_blank"
-                                class="text-emerald-500 hover:text-emerald-600 text-sm font-medium flex items-center gap-1 group"
-                            >
-                                <i class="pi pi-file-pdf text-lg"></i>
-                                <span class="border-b border-dashed border-emerald-500/30 group-hover:border-emerald-500">
-                                    Avis
-                                </span>
-                            </a>
-                        </div>
-
-                        <h3 class="text-xl font-bold mb-3 text-gray-800 dark:text-white line-clamp-2 group-hover:text-emerald-500 transition-colors">
-                            {{ item.intitule || item.nom }}
-                        </h3>
-
-                        <p class="text-gray-500 dark:text-gray-400 text-sm mb-6 line-clamp-3">
-                            {{ item.description }}
-                        </p>
-
-                        <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
-                            <div class="flex items-center gap-2 text-xs text-gray-400">
-                                <i class="pi pi-clock"></i>
-                                <span>Limite inscription</span> 
-                                 {{ new Date(item.date_limite).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) }}
+                        <!-- Texte avec transition - titres en vert vif -->
+                        <transition name="fade" mode="out-in">
+                            <div :key="currentHeroIndex" class="space-y-4">
+                                <h1
+                                    class="text-3xl md:text-5xl lg:text-6xl font-extrabold text-emerald-400 drop-shadow-lg"
+                                    style="
+                                        text-shadow: 2px 2px 4px
+                                            rgba(0, 0, 0, 0.5);
+                                    "
+                                >
+                                    {{ heroTexts[currentHeroIndex].titre }}
+                                </h1>
+                                <p
+                                    class="text-base md:text-xl text-white max-w-3xl mx-auto leading-relaxed drop-shadow-lg"
+                                    style="
+                                        text-shadow: 1px 1px 2px
+                                            rgba(0, 0, 0, 0.5);
+                                    "
+                                >
+                                    {{ heroTexts[currentHeroIndex].sousTitre }}
+                                </p>
                             </div>
+                        </transition>
+
+                        <!-- Indicateurs de slide -->
+                        <div class="flex gap-2 justify-center mt-8">
+                            <button
+                                v-for="(_, index) in heroTexts"
+                                :key="index"
+                                @click="currentHeroIndex = index"
+                                class="h-2 rounded-full transition-all duration-300"
+                                :class="[
+                                    currentHeroIndex === index
+                                        ? 'w-8 bg-emerald-500'
+                                        : 'w-2 bg-white/60 hover:bg-emerald-400',
+                                ]"
+                            ></button>
+                        </div>
+
+                        <!-- Bouton CTA -->
+                        <div class="mt-8">
                             <Link
-                                :href="route('login')"
-                                class="btn-outline group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300"
+                                v-if="canRegister && !$page.props.auth.user"
+                                :href="route('register')"
+                                class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 md:px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-2xl"
                             >
-                                Postuler
-                                <i class="pi pi-arrow-right ml-2 text-xs group-hover:translate-x-1 transition-transform"></i>
+                                <i class="pi pi-user-plus text-lg"></i>
+                                Commencer maintenant
                             </Link>
                         </div>
                     </div>
                 </div>
-                <div v-else class="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
-                    <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-gray-500 dark:text-gray-400">Aucun concours ouvert pour le moment</p>
-                </div>
             </section>
 
-            <!-- Section Résultats -->
-            <section class="mb-12">
-                <div class="flex items-center justify-between mb-8">
-                    <h2 class="text-2xl font-bold flex items-center gap-3">
-                        <span class="w-1 h-8 bg-emerald-500 rounded-full"></span>
-                        <span class="bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
-                            Derniers résultats
-                        </span>
-                    </h2>
-                </div>
-
-                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-xl">
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 dark:bg-gray-700/50">
-                                <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Concours
-                                    </th>
-                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Statut
-                                    </th>
-                                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Action
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                <tr
-                                    v-for="res in resultats"
-                                    :key="res.id"
-                                    class="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors group"
-                                >
-                                    <td class="px-6 py-4">
-                                        <div class="font-semibold text-gray-800 dark:text-white">
-                                            {{ res.intitule }}
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="inline-flex items-center gap-2">
-                                            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                                            <span class="text-emerald-600 dark:text-emerald-400 font-medium text-sm">
-                                                {{ res.statut }}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <a
-                                            v-if="res.url_fichier"
-                                            :href="res.url_fichier"
-                                            target="_blank"
-                                            class="btn-primary inline-flex items-center"
-                                        >
-                                            <i class="pi pi-download mr-2"></i>
-                                            Télécharger
-                                        </a>
-                                        <span v-else class="text-sm text-gray-400 italic">
-                                            Bientôt disponible
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr v-if="!resultats || resultats.length === 0">
-                                    <td colspan="3" class="px-6 py-12 text-center">
-                                        <i class="pi pi-file-pdf text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                                        <p class="text-gray-500 dark:text-gray-400">
-                                            Aucun résultat publié pour le moment
-                                        </p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+            <!-- Contenu principal -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+                <!-- Section Communiqués -->
+                <div class="mb-12 md:mb-16">
+                    <div class="flex items-center gap-2 mb-6">
+                        <i class="pi pi-megaphone text-emerald-500 text-xl"></i>
+                        <h2 class="text-xl md:text-2xl font-bold m-0">
+                            Communiqués officiels
+                        </h2>
                     </div>
-                </div>
-            </section>
 
-            <!-- Call to Action -->
-            <section class="mt-20 text-center">
-                <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-3xl p-12 text-white relative overflow-hidden">
-                    <div class="absolute inset-0 bg-white/10 backdrop-blur-3xl"></div>
-                    <div class="relative z-10">
-                        <h3 class="text-3xl font-bold mb-4">Prêt à commencer ?</h3>
-                        <p class="text-emerald-50 mb-8 max-w-2xl mx-auto">
-                            Rejoignez des milliers de candidats et postulez aux concours qui vous intéressent
-                        </p>
-                        <Link
-                            :href="route('register')"
-                            class="inline-flex items-center gap-3 bg-white text-emerald-600 px-8 py-4 rounded-xl font-bold hover:bg-emerald-50 transition-all transform hover:scale-105 shadow-2xl"
+                    <div
+                        v-if="communiquesActifs && communiquesActifs.length > 0"
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        <div
+                            v-for="communique in communiquesActifs"
+                            :key="communique.id"
+                            class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                         >
-                            <i class="pi pi-user-plus text-xl"></i>
-                            Créer un compte gratuitement
-                        </Link>
+                            <div
+                                class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-4"
+                            >
+                                <i
+                                    class="pi pi-megaphone text-white text-xl"
+                                ></i>
+                            </div>
+                            <div class="p-5">
+                                <div
+                                    class="flex items-center justify-between mb-2"
+                                >
+                                    <h3
+                                        class="font-bold text-lg text-gray-800 dark:text-white"
+                                    >
+                                        {{ communique.titre }}
+                                    </h3>
+                                    <Tag
+                                        value="Nouveau"
+                                        severity="info"
+                                        size="small"
+                                    />
+                                </div>
+                                <div
+                                    class="text-sm text-gray-500 dark:text-gray-400 mb-2"
+                                >
+                                    <i class="pi pi-calendar mr-1"></i>
+                                    {{ communique.published_at }}
+                                </div>
+                                <div
+                                    class="text-sm text-gray-500 dark:text-gray-400 mb-3"
+                                >
+                                    <i class="pi pi-tag mr-1"></i> Concours :
+                                    {{ communique.concour_intitule }}
+                                </div>
+                                <div
+                                    class="text-gray-600 dark:text-gray-300 whitespace-pre-wrap line-clamp-3"
+                                >
+                                    {{ communique.contenu }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        v-else
+                        class="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-2xl"
+                    >
+                        <i class="pi pi-inbox text-4xl text-gray-400 mb-3"></i>
+                        <p class="text-gray-500 dark:text-gray-400">
+                            Aucun communiqué disponible pour le moment.
+                        </p>
                     </div>
                 </div>
-            </section>
+
+                <!-- Section Concours ouverts -->
+                <section class="mb-12 md:mb-16">
+                    <div
+                        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6"
+                    >
+                        <h2
+                            class="text-xl md:text-2xl font-bold flex items-center gap-3"
+                        >
+                            <span
+                                class="w-1 h-6 md:h-8 bg-emerald-500 rounded-full"
+                            ></span>
+                            <span
+                                class="bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent"
+                                >Concours ouverts</span
+                            >
+                        </h2>
+                        <span
+                            class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap"
+                        >
+                            {{ concours?.length || 0 }} concours actifs
+                        </span>
+                    </div>
+
+                    <div
+                        v-if="concours && concours.length > 0"
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        <div
+                            v-for="(item, index) in concours"
+                            :key="item.id"
+                            class="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 hover:-translate-y-1"
+                            :style="getCardDelay(index)"
+                        >
+                            <div
+                                class="absolute -top-3 right-6 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg"
+                            >
+                                {{
+                                    new Date(
+                                        item.created_at,
+                                    ).toLocaleDateString("fr-FR", {
+                                        day: "numeric",
+                                        month: "short",
+                                    })
+                                }}
+                            </div>
+                            <div class="flex justify-between items-start mb-4">
+                                <span
+                                    class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
+                                    >Inscription ouverte</span
+                                >
+                                <a
+                                    v-if="item.avis"
+                                    :href="
+                                        '/storage/Uploads/Avis/' +
+                                        getFileName(item.avis)
+                                    "
+                                    target="_blank"
+                                    class="text-emerald-500 hover:text-emerald-600 text-sm font-medium flex items-center gap-1 group"
+                                >
+                                    <i class="pi pi-file-pdf text-lg"></i>
+                                    <span
+                                        class="border-b border-dashed border-emerald-500/30 group-hover:border-emerald-500"
+                                        >Avis</span
+                                    >
+                                </a>
+                            </div>
+                            <h3
+                                class="text-lg md:text-xl font-bold mb-3 text-gray-800 dark:text-white line-clamp-2 group-hover:text-emerald-500 transition-colors"
+                            >
+                                {{ item.intitule || item.nom }}
+                            </h3>
+                            <p
+                                class="text-gray-500 dark:text-gray-400 text-sm mb-6 line-clamp-3"
+                            >
+                                {{ item.description }}
+                            </p>
+                            <div
+                                class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700"
+                            >
+                                <div
+                                    class="flex items-center gap-2 text-xs text-gray-400"
+                                >
+                                    <i class="pi pi-clock"></i>
+                                    <span>Limite</span>
+                                    {{
+                                        new Date(
+                                            item.date_limite,
+                                        ).toLocaleDateString("fr-FR", {
+                                            day: "numeric",
+                                            month: "short",
+                                        })
+                                    }}
+                                </div>
+                                <Link
+                                    :href="route('login')"
+                                    class="btn-outline text-sm"
+                                    >Postuler
+                                    <i
+                                        class="pi pi-arrow-right ml-2 text-xs group-hover:translate-x-1 transition-transform"
+                                    ></i
+                                ></Link>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        v-else
+                        class="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-2xl"
+                    >
+                        <i
+                            class="pi pi-info-circle text-4xl text-gray-400 mb-4"
+                        ></i>
+                        <p class="text-gray-500 dark:text-gray-400">
+                            Aucun concours ouvert pour le moment
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Section Résultats -->
+                <section class="mb-12">
+                    <h2
+                        class="text-xl md:text-2xl font-bold flex items-center gap-3 mb-6"
+                    >
+                        <span
+                            class="w-1 h-6 md:h-8 bg-emerald-500 rounded-full"
+                        ></span>
+                        <span
+                            class="bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent"
+                            >Derniers résultats</span
+                        >
+                    </h2>
+
+                    <div
+                        class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-xl"
+                    >
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50 dark:bg-gray-700/50">
+                                    <tr>
+                                        <th
+                                            class="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                        >
+                                            Concours
+                                        </th>
+                                        <th
+                                            class="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                        >
+                                            Statut
+                                        </th>
+                                        <th
+                                            class="px-4 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                        >
+                                            Action
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    class="divide-y divide-gray-100 dark:divide-gray-700"
+                                >
+                                    <tr
+                                        v-for="res in resultats"
+                                        :key="res.id"
+                                        class="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors"
+                                    >
+                                        <td class="px-4 md:px-6 py-3 md:py-4">
+                                            <div
+                                                class="font-semibold text-gray-800 dark:text-white text-sm md:text-base"
+                                            >
+                                                {{ res.intitule }}
+                                            </div>
+                                        </td>
+                                        <td class="px-4 md:px-6 py-3 md:py-4">
+                                            <div
+                                                class="inline-flex items-center gap-2"
+                                            >
+                                                <span
+                                                    class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"
+                                                ></span>
+                                                <span
+                                                    class="text-emerald-600 dark:text-emerald-400 font-medium text-sm"
+                                                    >{{ res.statut }}</span
+                                                >
+                                            </div>
+                                        </td>
+                                        <td
+                                            class="px-4 md:px-6 py-3 md:py-4 text-right"
+                                        >
+                                            <a
+                                                v-if="res.url_fichier"
+                                                :href="res.url_fichier"
+                                                target="_blank"
+                                                class="btn-primary text-sm inline-flex items-center"
+                                            >
+                                                <i
+                                                    class="pi pi-download mr-2 text-xs"
+                                                ></i>
+                                                Télécharger
+                                            </a>
+                                            <span
+                                                v-else
+                                                class="text-sm text-gray-400 italic"
+                                                >Bientôt disponible</span
+                                            >
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        v-if="
+                                            !resultats || resultats.length === 0
+                                        "
+                                    >
+                                        <td
+                                            colspan="3"
+                                            class="px-6 py-12 text-center"
+                                        >
+                                            <i
+                                                class="pi pi-file-pdf text-4xl text-gray-300 dark:text-gray-600 mb-3"
+                                            ></i>
+                                            <p
+                                                class="text-gray-500 dark:text-gray-400"
+                                            >
+                                                Aucun résultat publié pour le
+                                                moment
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Call to Action -->
+                <section class="mt-12 md:mt-20 text-center">
+                    <div
+                        class="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden"
+                    >
+                        <div
+                            class="absolute inset-0 bg-white/10 backdrop-blur-3xl"
+                        ></div>
+                        <div class="relative z-10">
+                            <h3 class="text-2xl md:text-3xl font-bold mb-4">
+                                Prêt à commencer ?
+                            </h3>
+                            <p
+                                class="text-emerald-50 mb-6 md:mb-8 max-w-2xl mx-auto text-sm md:text-base"
+                            >
+                                Rejoignez des milliers de candidats et postulez
+                                aux concours qui vous intéressent
+                            </p>
+                            <Link
+                                v-if="canRegister && !$page.props.auth.user"
+                                :href="route('register')"
+                                class="inline-flex items-center gap-2 md:gap-3 bg-white text-emerald-600 px-6 md:px-8 py-3 md:py-4 rounded-xl font-bold hover:bg-emerald-50 transition-all transform hover:scale-105 shadow-2xl text-sm md:text-base"
+                            >
+                                <i class="pi pi-user-plus text-lg"></i>
+                                Créer un compte gratuitement
+                            </Link>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </main>
 
         <!-- Footer -->
-        <footer class="border-t border-gray-200 dark:border-gray-800 mt-20 py-8">
-            <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                © 2026 Plateforme CƐTA - Tous droits réservés
+        <footer
+            class="border-t border-gray-200 dark:border-gray-800 mt-12 md:mt-20 py-6 md:py-8"
+        >
+            <div
+                class="max-w-7xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-xs md:text-sm"
+            >
+                © 2026 Plateforme DTTIA - Tous droits réservés
             </div>
         </footer>
     </div>
 </template>
 
 <style scoped>
-
 /* Animations */
 @keyframes fadeInUp {
     from {
@@ -369,25 +646,31 @@ const getCardDelay = (index) => {
 
 /* Boutons personnalisés */
 .btn-primary {
-    @apply bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-95 inline-flex items-center text-sm;
+    @apply bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-95 inline-flex items-center;
 }
 
 .btn-outline {
-    @apply border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white px-5 py-2 rounded-xl font-bold transition-all duration-300 text-sm inline-flex items-center;
+    @apply border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white px-4 py-2 rounded-xl font-bold transition-all duration-300 inline-flex items-center;
 }
 
-/* Améliorations responsives */
+/* Responsive */
 @media (max-width: 640px) {
-    .btn-primary {
-        @apply px-4 py-2 text-xs;
-    }
-    
-    h1 {
-        @apply text-3xl;
+    .btn-primary,
+    .btn-outline {
+        @apply px-3 py-1.5 text-xs;
     }
 }
 
-/* Scrollbar personnalisée */
+/* Line clamp */
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

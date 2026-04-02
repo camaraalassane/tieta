@@ -73,6 +73,12 @@ const model = computed(() => {
                         to: "/concours-consulter",
                         description: "Consulter et modifier",
                     },
+                    {
+                        label: "Communiqués",
+                        icon: "pi-megaphone",
+                        to: "/communiques",
+                        description: "Gérer les communiqués officiels",
+                    },
                 ],
             },
             {
@@ -216,7 +222,7 @@ const filteredModel = computed(() => {
 
 <template>
     <div class="layout-menu-container">
-        <!-- Profil utilisateur compact -->
+        <!-- Profil utilisateur compact - réduit -->
         <div class="user-profile-compact">
             <div class="user-avatar-small">
                 {{ userData?.name?.charAt(0) || "U" }}
@@ -229,10 +235,9 @@ const filteredModel = computed(() => {
                     {{ userData?.email?.split("@")[0] || "" }}
                 </div>
             </div>
-            <div class="user-status-dot"></div>
         </div>
 
-        <!-- Barre de recherche compacte -->
+        <!-- Barre de recherche compacte - réduite -->
         <div class="search-compact" :class="{ expanded: isSearchVisible }">
             <button
                 class="search-toggle-small"
@@ -253,13 +258,13 @@ const filteredModel = computed(() => {
             />
         </div>
 
-        <!-- Menu principal -->
+        <!-- Menu principal - compacté -->
         <ul class="layout-menu-compact">
             <template
                 v-for="(section, sectionIndex) in filteredModel"
                 :key="section.label"
             >
-                <!-- Section header compact -->
+                <!-- Section header compact - réduit -->
                 <li class="menu-section-compact">
                     <div class="menu-section-header-compact">
                         <i
@@ -286,7 +291,7 @@ const filteredModel = computed(() => {
                     </ul>
                 </li>
 
-                <!-- Séparateur fin (uniquement entre les sections) -->
+                <!-- Séparateur réduit -->
                 <li
                     v-if="sectionIndex < filteredModel.length - 1"
                     class="menu-separator-thin"
@@ -299,9 +304,6 @@ const filteredModel = computed(() => {
                 <p>Aucun résultat</p>
             </li>
         </ul>
-
-        <!-- Espace vide en bas pour un meilleur équilibre -->
-        <div class="menu-footer-spacer"></div>
     </div>
 </template>
 
@@ -312,29 +314,29 @@ const filteredModel = computed(() => {
     flex-direction: column;
     background: var(--surface-card);
     border-right: 1px solid var(--surface-border);
-    padding: 12px 8px;
+    padding: 8px 6px;
 }
 
-/* Profil utilisateur compact */
+/* Profil utilisateur compact - réduit */
 .user-profile-compact {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    margin: 0 4px 12px 4px;
+    gap: 6px;
+    padding: 6px 8px;
+    margin: 0 2px 8px 2px;
     background: rgba(16, 185, 129, 0.05);
-    border-radius: 10px;
+    border-radius: 8px;
 
     .user-avatar-small {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 600;
     }
 
@@ -343,7 +345,7 @@ const filteredModel = computed(() => {
         min-width: 0;
 
         .user-name-small {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-color);
             line-height: 1.2;
@@ -353,47 +355,39 @@ const filteredModel = computed(() => {
         }
 
         .user-email-small {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-color-secondary);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
     }
-
-    .user-status-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #10b981;
-        animation: pulse 2s infinite;
-    }
 }
 
-/* Recherche compacte */
+/* Recherche compacte - réduite */
 .search-compact {
-    margin: 0 4px 12px 4px;
+    margin: 0 2px 8px 2px;
     position: relative;
     display: flex;
     align-items: center;
     background: var(--surface-ground);
-    border-radius: 8px;
+    border-radius: 6px;
 
     &.expanded {
         background: var(--surface-card);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .search-toggle-small {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
         background: none;
         border: none;
         color: var(--text-color-secondary);
-        font-size: 14px;
+        font-size: 12px;
         cursor: pointer;
 
         &:hover {
@@ -403,22 +397,22 @@ const filteredModel = computed(() => {
 
     .search-input-small {
         flex: 1;
-        height: 32px;
-        padding-right: 10px;
+        height: 28px;
+        padding-right: 8px;
         background: none;
         border: none;
         outline: none;
         color: var(--text-color);
-        font-size: 13px;
+        font-size: 12px;
 
         &::placeholder {
             color: var(--text-color-secondary);
-            font-size: 12px;
+            font-size: 11px;
         }
     }
 }
 
-/* Menu compact */
+/* Menu compact - réduit */
 .layout-menu-compact {
     list-style: none;
     padding: 0;
@@ -428,31 +422,31 @@ const filteredModel = computed(() => {
 
     /* Scrollbar fine */
     &::-webkit-scrollbar {
-        width: 3px;
+        width: 2px;
     }
 
     &::-webkit-scrollbar-thumb {
         background: rgba(16, 185, 129, 0.3);
-        border-radius: 3px;
+        border-radius: 2px;
     }
 }
 
 .menu-section-compact {
-    margin-bottom: 8px; /* Espace uniforme entre les sections */
+    margin-bottom: 4px;
 
     .menu-section-header-compact {
         display: flex;
         align-items: center;
-        padding: 6px 10px;
+        padding: 4px 8px;
         color: var(--text-color-secondary);
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         letter-spacing: 0.3px;
         text-transform: uppercase;
 
         .section-icon-small {
-            font-size: 12px;
-            margin-right: 6px;
+            font-size: 10px;
+            margin-right: 4px;
             color: #10b981;
         }
 
@@ -461,11 +455,11 @@ const filteredModel = computed(() => {
         }
 
         .section-badge-small {
-            padding: 2px 5px;
+            padding: 1px 4px;
             background: rgba(16, 185, 129, 0.1);
             color: #10b981;
-            border-radius: 10px;
-            font-size: 9px;
+            border-radius: 8px;
+            font-size: 8px;
             font-weight: 600;
         }
     }
@@ -485,11 +479,7 @@ const filteredModel = computed(() => {
         var(--surface-border),
         transparent
     );
-    margin: 12px 16px; /* Plus d'espace autour des séparateurs */
-}
-
-.menu-footer-spacer {
-    height: 16px; /* Espace en bas pour équilibrer */
+    margin: 6px 12px;
 }
 
 .no-results-compact {
@@ -497,17 +487,17 @@ const filteredModel = computed(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px 12px;
+    padding: 16px 8px;
     color: var(--text-color-secondary);
 
     i {
-        font-size: 24px;
-        margin-bottom: 8px;
+        font-size: 20px;
+        margin-bottom: 4px;
         opacity: 0.5;
     }
 
     p {
-        font-size: 12px;
+        font-size: 10px;
     }
 }
 

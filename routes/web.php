@@ -26,6 +26,7 @@ use App\Http\Controllers\ConcourMessagerieController;
 use App\Http\Controllers\CandidatMessagerieController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ConcourHistoriqueController;
+use App\Http\Controllers\CommuniqueController;
 use App\Notifications\ConcoursClosed;
 
 require __DIR__.'/auth.php';
@@ -34,7 +35,8 @@ require __DIR__.'/auth.php';
  * ROUTES PUBLIQUES
  */
 
-
+// Route publique pour récupérer les communiqués actifs
+Route::get('/api/communiques/active', [CommuniqueController::class, 'getActiveCommuniques'])->name('api.communiques.active');
 
 Route::get('/force-notif', function () {
     // 1. On cherche les concours expirés
@@ -57,11 +59,13 @@ Route::get('/force-notif', function () {
     return "Aucun concours n'a dépassé la date_limite actuelle.";
 });
 
+// Dans la route '/'
 Route::get('/', function () {
     return Inertia::render('Welcome', [
-        'concours' => Concour::where('statut', 'Actif') ->orderBy('created_at', 'desc')->get() ,
-        'resultats' => Resultat::where('statut', 'Publié')->orderBy('created_at', 'desc')->get() ->map(function($res) {
-            $fileName = basename($res->fichier); 
+        // Données existantes
+        'concours' => Concour::where('statut', 'Actif')->orderBy('created_at', 'desc')->get(),
+        'resultats' => Resultat::where('statut', 'Publié')->orderBy('created_at', 'desc')->get()->map(function ($res) {
+            $fileName = basename($res->fichier);
             return [
                 'id' => $res->id,
                 'intitule' => $res->intitule,
@@ -71,10 +75,23 @@ Route::get('/', function () {
         }),
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
+        // Données des communiqués
+        'communiquesActifs' => \App\Models\Traitement::with('concour')
+            ->where('communique_is_active', true)
+            ->whereNotNull('communique')
+            ->where('communique', '!=', '')
+            ->orderBy('created_at', 'desc')  // Tri par date de création
+            ->get()
+            ->map(fn($item) => [
+                'id' => $item->id,
+                'concour_intitule' => $item->concour?->intitule,
+                'titre' => $item->communique_titre,
+                'contenu' => $item->communique,
+                'published_at' => $item->created_at?->format('d/m/Y'),  // Utiliser created_at
+                'date_limite' => $item->date_limite ? $item->date_limite->format('d/m/Y') : null,  // Ajouter date_limite
+            ]),
     ]);
-});
-
-
+})->name('welcome');
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // C'EST ICI QU'IL FAUT METTRE LE DASHBOARD HYBRIDE
@@ -110,7 +127,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/candidat-resultat', [CandidatResultatController::class, 'index'])->name('candidat-resultat.index');
     // Dans le groupe middleware ['auth', 'verified']
 Route::get('/candidat-resultat/{id}/voir', [CandidatResultatController::class, 'view'])->name('candidat.resultat.view');
-  // Profil Candidat (CORRIGÉ)
+    // Profil Candidat (CORRIGÉ)
+
+    // Détail d'une candidature
+    Route::get('/candidature/{id}', [CandidatDossierController::class, 'show'])->name('candidature.show');
+    Route::get('/candidature/{id}/receipt', [CandidatDossierController::class, 'receipt'])->name('candidature.receipt');
 // Profil Candidat (CORRIGÉ)
     Route::get('/candidat-profil', [CandidatProfilController::class, 'index'])->name('candidat-profil.index');
     // Le {id?} avec un point d'interrogation signifie que l'ID est optionnel
@@ -163,6 +184,15 @@ Route::middleware(['auth', 'verified', 'adminMiddleware'])->group(function () {
         Route::get('/', [ConcourMessagerieController::class, 'index'])->name('index');
         Route::post('/envoyer', [ConcourMessagerieController::class, 'store'])->name('store');
         Route::patch('/{id}/lire', [ConcourMessagerieController::class, 'markAsRead'])->name('read');
+    });
+
+    // --- COMMUNIQUÉS ---
+    Route::prefix('communiques')->name('communiques.')->group(function () {
+        Route::get('/', [CommuniqueController::class, 'index'])->name('index');
+        Route::post('/store', [CommuniqueController::class, 'store'])->name('store');
+        Route::patch('/{id}/publish', [CommuniqueController::class, 'publish'])->name('publish');
+        Route::patch('/{id}/unpublish', [CommuniqueController::class, 'unpublish'])->name('unpublish');
+        Route::delete('/{id}', [CommuniqueController::class, 'destroy'])->name('destroy');
     });
 
     // --- HISTORIQUE DES CANDIDATURES ---

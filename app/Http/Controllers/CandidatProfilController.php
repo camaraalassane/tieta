@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Profil;
+use App\Models\Candidature;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -17,9 +18,34 @@ class CandidatProfilController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // Vérifier s'il existe une candidature en traitement pour ce profil
+        $hasActiveCandidature = false;
+        if ($user->profil) {
+            $hasActiveCandidature = Candidature::where('profil_id', $user->profil->id)
+                ->where('resultat', 'Traitement')
+                ->exists();
+        }
+
         return Inertia::render('Candidat/profil', [
             'user' => $user->load('profil'),
-            'isOwner' => true
+            'isOwner' => true,
+            'hasActiveCandidature' => $hasActiveCandidature,
+            'showBanner' => true, // Toujours afficher le bandeau pour le candidat
+        ]);
+    }
+
+    public function show(Profil $profil)
+    {
+        // On récupère l'utilisateur lié au profil
+        $user = $profil->user->load('profil');
+
+        $isOwner = Auth::id() === $user->id;
+
+        return Inertia::render('Candidat/profil', [
+            'user' => $user,
+            'isOwner' => $isOwner,
+            'hasActiveCandidature' => false,
+            'showBanner' => false, // Pas de bandeau pour l'admin
         ]);
     }
 
@@ -28,6 +54,19 @@ class CandidatProfilController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // Vérifier s'il existe une candidature en traitement avant modification
+        $hasActiveCandidature = false;
+        if ($user->profil) {
+            $hasActiveCandidature = Candidature::where('profil_id', $user->profil->id)
+                ->where('resultat', 'Traitement')
+                ->exists();
+        }
+
+        // Si une candidature est en traitement, bloquer la modification
+        if ($hasActiveCandidature) {
+            return back()->with('error', 'Vous ne pouvez pas modifier votre profil car vous avez une candidature en traitement.');
+        }
+
         // S'assurer que le profil existe, sinon le créer
         $profil = $user->profil ?: $user->profil()->create();
 
@@ -35,7 +74,7 @@ class CandidatProfilController extends Controller
         $validated = $request->validate([
             'nom' => 'nullable|string|max:255',
             'prenom' => 'nullable|string|max:255',
-            'sexe' => 'nullable|string|max:255',
+            'sexe' => 'nullable|string|in:Masculin,Feminin',
             'telephone' => 'nullable|string|max:25',
             'date_naissance' => 'nullable|date',
             'lieu_naissance' => 'nullable|string|max:255',
@@ -66,19 +105,27 @@ class CandidatProfilController extends Controller
             $profilData = [
                 'nom' => $validated['nom'] ?? $profil->nom,
                 'prenom' => $validated['prenom'] ?? $profil->prenom,
-                'sexe' => 'nullable|string|in:Masculin,Feminin', // <--- AJOUTÉ
+                'sexe' => $validated['sexe'] ?? $profil->sexe,
                 'telephone' => $validated['telephone'] ?? $profil->telephone,
                 'date_naissance' => $validated['date_naissance'] ?? $profil->date_naissance,
                 'lieu_naissance' => $validated['lieu_naissance'] ?? $profil->lieu_naissance,
                 'region' => $validated['region'] ?? $profil->region,
                 'email' => $validated['email'] ?? $user->email,
-                'sexe' => $validated['sexe'] ?? $profil->sexe, // <--- AJOUTÉ
             ];
 
             // 4. Gestion des fichiers
             $fileFields = [
-                'photo_identite', 'carte_identite', 'permis',
-                'DEF', 'BAC', 'CAP', 'BT', 'DUT', 'Licence', 'Master', 'Doctorat'
+                'photo_identite',
+                'carte_identite',
+                'permis',
+                'DEF',
+                'BAC',
+                'CAP',
+                'BT',
+                'DUT',
+                'Licence',
+                'Master',
+                'Doctorat'
             ];
 
             foreach ($fileFields as $field) {
@@ -99,16 +146,5 @@ class CandidatProfilController extends Controller
         });
 
         return back()->with('success', 'Votre profil a été mis à jour avec succès.');
-    }
-
-    public function show(Profil $profil)
-    {
-        // On récupère l'utilisateur lié au profil
-        $user = $profil->user->load('profil');
-
-        return Inertia::render('Candidat/profil', [
-            'user' => $user,
-            'isOwner' => Auth::id() === $user->id
-        ]);
     }
 }
