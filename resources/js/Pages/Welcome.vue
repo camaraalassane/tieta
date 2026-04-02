@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
 import { ref, onMounted, onUnmounted } from "vue";
+import Tag from "primevue/tag";
 
 defineProps({
     canLogin: Boolean,
@@ -98,75 +99,76 @@ const getCardDelay = (index) => {
     <div
         class="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900"
     >
-        <!-- Navigation améliorée - responsive -->
+        <!-- Navigation - Logo à gauche, boutons à droite -->
         <nav
             class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-emerald-100 dark:border-gray-700 sticky top-0 z-50"
         >
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-0">
-                <div
-                    class="flex flex-col md:flex-row md:justify-between md:items-center gap-2 md:gap-0"
-                >
-                    <!-- Logo -->
-                    <div
-                        class="flex items-center justify-center md:justify-start gap-2 group"
-                    >
+            <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-2">
+                    <!-- Logo et titre - À GAUCHE -->
+                    <div class="flex items-center gap-2 group flex-shrink-0">
                         <div class="relative">
                             <div
-                                class="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl group-hover:bg-emerald-500/30 transition-all duration-300"
+                                class="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/30 transition-all duration-300"
                             ></div>
                             <div
-                                class="relative p-0.5 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl"
+                                class="relative p-0.5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl"
                             >
                                 <div
-                                    class="bg-white dark:bg-gray-800 rounded-lg p-0.5"
+                                    class="bg-white dark:bg-gray-800 rounded-full p-0.5"
                                 >
                                     <img
                                         src="/Images/DTTIA.jpeg"
                                         alt="DTTIA"
-                                        class="h-9 md:h-10 w-auto rounded-lg transform group-hover:scale-110 transition-transform duration-300"
+                                        class="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover transform group-hover:scale-110 transition-transform duration-300"
                                     />
                                 </div>
                             </div>
                         </div>
                         <div class="flex flex-col items-start">
                             <span
-                                class="text-lg md:text-xl font-black tracking-tighter text-emerald-500"
+                                class="text-sm md:text-xl font-black tracking-tighter text-emerald-500 leading-tight"
                                 >DTTIA</span
                             >
                             <span
-                                class="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                class="text-[8px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                                 >Recrutement</span
                             >
                         </div>
                     </div>
 
-                    <!-- Menu de navigation -->
-                    <div
-                        class="flex items-center justify-center gap-3 md:gap-4"
-                    >
+                    <!-- Menu de navigation - À DROITE -->
+                    <div class="flex items-center gap-2 md:gap-4">
                         <template v-if="canLogin">
                             <Link
                                 v-if="$page.props.auth.user"
                                 :href="route('dashboard')"
-                                class="btn-primary text-sm"
+                                class="btn-primary text-xs md:text-sm"
                             >
                                 <i class="pi pi-user mr-1 text-xs"></i>
-                                <span>Mon Espace</span>
+                                <span class="hidden sm:inline">Mon Espace</span>
+                                <span class="sm:hidden">Espace</span>
                             </Link>
                             <template v-else>
                                 <Link
                                     :href="route('login')"
-                                    class="text-gray-600 dark:text-gray-300 hover:text-emerald-500 font-medium transition-colors text-sm whitespace-nowrap"
+                                    class="text-gray-600 dark:text-gray-300 hover:text-emerald-500 font-medium transition-colors text-xs md:text-sm whitespace-nowrap"
                                 >
-                                    Se connecter
+                                    <span class="hidden sm:inline"
+                                        >Se connecter</span
+                                    >
+                                    <span class="sm:hidden">Connexion</span>
                                 </Link>
                                 <Link
                                     v-if="canRegister"
                                     :href="route('register')"
-                                    class="btn-primary text-sm whitespace-nowrap"
+                                    class="btn-primary text-xs md:text-sm whitespace-nowrap"
                                 >
                                     <i class="pi pi-user-plus mr-1 text-xs"></i>
-                                    <span>S'inscrire</span>
+                                    <span class="hidden sm:inline"
+                                        >S'inscrire</span
+                                    >
+                                    <span class="sm:hidden">Inscription</span>
                                 </Link>
                             </template>
                         </template>
@@ -180,7 +182,7 @@ const getCardDelay = (index) => {
             <section
                 class="relative h-[90vh] min-h-[600px] flex items-center overflow-hidden"
             >
-                <!-- Images de fond avec transition - couleurs d'origine conservées -->
+                <!-- Images de fond avec transition -->
                 <div
                     v-for="(img, index) in backgroundImages"
                     :key="index"
@@ -190,7 +192,6 @@ const getCardDelay = (index) => {
                         'opacity-0 z-0': currentImageIndex !== index,
                     }"
                 >
-                    <!-- Overlay plus sombre pour meilleure lisibilité -->
                     <div class="absolute inset-0 bg-black/60 z-10"></div>
                     <img
                         :src="img"
@@ -199,7 +200,7 @@ const getCardDelay = (index) => {
                     />
                 </div>
 
-                <!-- Contenu Hero - titres en vert vif, sous-titres en blanc -->
+                <!-- Contenu Hero -->
                 <div
                     class="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
                 >
@@ -214,7 +215,7 @@ const getCardDelay = (index) => {
                             Plateforme officielle des concours
                         </div>
 
-                        <!-- Texte avec transition - titres en vert vif -->
+                        <!-- Texte avec transition -->
                         <transition name="fade" mode="out-in">
                             <div :key="currentHeroIndex" class="space-y-4">
                                 <h1
@@ -610,7 +611,7 @@ const getCardDelay = (index) => {
             <div
                 class="max-w-7xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-xs md:text-sm"
             >
-                © 2026 Plateforme DTTIA - Tous droits réservés
+                © 2026 DTTIA Recrutement - Tous droits réservés
             </div>
         </footer>
     </div>
@@ -646,19 +647,11 @@ const getCardDelay = (index) => {
 
 /* Boutons personnalisés */
 .btn-primary {
-    @apply bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-95 inline-flex items-center;
+    @apply bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-95 inline-flex items-center;
 }
 
 .btn-outline {
-    @apply border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white px-4 py-2 rounded-xl font-bold transition-all duration-300 inline-flex items-center;
-}
-
-/* Responsive */
-@media (max-width: 640px) {
-    .btn-primary,
-    .btn-outline {
-        @apply px-3 py-1.5 text-xs;
-    }
+    @apply border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl font-bold transition-all duration-300 inline-flex items-center;
 }
 
 /* Line clamp */
@@ -677,10 +670,15 @@ const getCardDelay = (index) => {
 }
 
 ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-emerald-500/50 rounded-full hover:bg-emerald-500/70 transition-colors;
+    background: #10b981;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #059669;
 }
 </style>

@@ -77,7 +77,7 @@ const submit = () => {
                             <div
                                 class="absolute -bottom-4 -right-4 bg-white dark:bg-gray-800 text-emerald-600 px-6 py-3 rounded-2xl shadow-xl font-bold text-lg"
                             >
-                                Connexion
+                                Se Connecter
                             </div>
                         </div>
 
@@ -124,7 +124,7 @@ const submit = () => {
                                     class="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-30"
                                 ></div>
                                 <img
-                                    src="/images/DTTIA.jpeg"
+                                    src="/Images/DTTIA.jpeg"
                                     alt="DTTIA"
                                     class="h-24 w-auto relative rounded-2xl shadow-xl border-4 border-white dark:border-gray-800"
                                 />
@@ -148,7 +148,7 @@ const submit = () => {
                             <h2
                                 class="text-2xl font-bold text-gray-900 dark:text-white mb-2"
                             >
-                                Connexion
+                                Se Connecter
                             </h2>
                             <p class="text-gray-500 dark:text-gray-400">
                                 Accédez à votre espace personnel

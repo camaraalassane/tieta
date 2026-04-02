@@ -131,7 +131,7 @@ const showPasswordConfirmation = ref(false);
                                     class="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-30"
                                 ></div>
                                 <img
-                                    src="/images/DTTIA.jpeg"
+                                    src="/Images/DTTIA.jpeg"
                                     alt="DTTIA"
                                     class="h-24 w-auto relative rounded-2xl shadow-xl border-4 border-white dark:border-gray-800"
                                 />
@@ -155,7 +155,7 @@ const showPasswordConfirmation = ref(false);
                             <h2
                                 class="text-2xl font-bold text-gray-900 dark:text-white mb-2"
                             >
-                                Inscription
+                                S'inscription
                             </h2>
                             <p class="text-gray-500 dark:text-gray-400">
                                 Remplissez vos informations pour créer un compte

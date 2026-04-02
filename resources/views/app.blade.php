@@ -3,7 +3,9 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
+<!-- Désactiver la traduction automatique -->
+        <meta name="google" content="notranslate">
+        <meta name="robots" content="noindex, nofollow">
         <title inertia>{{ config('app.name', 'Recrutement DTTIA') }}</title>
 
         <!-- Fonts -->
