@@ -1,4 +1,5 @@
 <?php
+// app/Models/Message.php
 
 namespace App\Models;
 
@@ -11,34 +12,31 @@ class Message extends Model
     use HasFactory;
 
     protected $fillable = [
-        'emetteur_id', 
-        'destinataire_id', 
-        'concour_id', 
-        'objet', 
-        'texte', 
-        'lu'
+        'emetteur_id',
+        'destinataire_id',
+        'concour_id',
+        'objet',
+        'texte',
+        'lu',
+        'is_broadcast',
+        'broadcast_subject'
     ];
 
-    /**
-     * Relation avec le concours
-     */
+    protected $casts = [
+        'lu' => 'boolean',
+        'is_broadcast' => 'boolean',
+    ];
+
     public function concour(): BelongsTo
     {
         return $this->belongsTo(Concour::class, 'concour_id');
     }
 
-    /**
-     * Relation avec l'émetteur (celui qui envoie)
-     */
     public function emetteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'emetteur_id');
     }
 
-    /**
-     * Relation avec le destinataire (celui qui reçoit)
-     * C'est cette fonction qui manquait dans votre code précédent
-     */
     public function destinataire(): BelongsTo
     {
         return $this->belongsTo(User::class, 'destinataire_id');

@@ -1,32 +1,49 @@
-/**
- * We'll load the axios HTTP library which allows us to easily issue requests
- * to our Laravel back-end. This library automatically handles sending the
- * CSRF token as a header based on the value of the "XSRF" token cookie.
- */
-
 import axios from 'axios';
 window.axios = axios;
-
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-/**
- * Echo exposes an expressive API for subscribing to channels and listening
- * for events that are broadcast by Laravel. Echo and event broadcasting
- * allows your team to easily build robust real-time web applications.
- */
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
 
-// import Echo from 'laravel-echo';
+window.Pusher = Pusher;
 
-// import Pusher from 'pusher-js';
-// window.Pusher = Pusher;
+// Configuration pour Laravel Reverb
+window.Echo = new Echo({
+    broadcaster: 'reverb',
+    key: import.meta.env.VITE_REVERB_APP_KEY || 'local',
+    wsHost: import.meta.env.VITE_REVERB_HOST || 'localhost',
+    wsPort: import.meta.env.VITE_REVERB_PORT || 8080,
+    wssPort: import.meta.env.VITE_REVERB_PORT || 8080,
+    forceTLS: false,
+    enabledTransports: ['ws', 'wss'],
+    authEndpoint: '/broadcasting/auth',
+    auth: {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    }
+});
 
-// window.Echo = new Echo({
-//     broadcaster: 'pusher',
-//     key: import.meta.env.VITE_PUSHER_APP_KEY,
-//     cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER ?? 'mt1',
-//     wsHost: import.meta.env.VITE_PUSHER_HOST ? import.meta.env.VITE_PUSHER_HOST : `ws-${import.meta.env.VITE_PUSHER_APP_CLUSTER}.pusher.com`,
-//     wsPort: import.meta.env.VITE_PUSHER_PORT ?? 80,
-//     wssPort: import.meta.env.VITE_PUSHER_PORT ?? 443,
-//     forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
-//     enabledTransports: ['ws', 'wss'],
-// });
+// ✅ Correction : Vérifier que Echo et connector existent avant d'ajouter les listeners
+if (window.Echo && window.Echo.connector) {
+    // Attendre que la connexion soit établie
+    window.Echo.connector.socket?.on('connect', () => {
+        console.log('✅ Reverb connecté avec succès !');
+    });
+    
+    window.Echo.connector.socket?.on('error', (error) => {
+        console.error('❌ Erreur Reverb:', error);
+    });
+} else {
+    console.warn('⚠️ Echo non initialisé, vérifiez votre configuration');
+}
+
+// Alternative plus sûre : utiliser setTimeout pour attendre l'initialisation
+setTimeout(() => {
+    if (window.Echo && window.Echo.connector && window.Echo.connector.socket) {
+        window.Echo.connector.socket.on('connect', () => {
+            console.log('✅ Reverb connecté (différé)');
+        });
+    }
+}, 1000);

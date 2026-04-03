@@ -1,28 +1,45 @@
 <script setup>
 import { useLayout } from "@/sakai/layout/composables/layout";
-import { computed, ref, onMounted, watch } from "vue";
+import { computed, ref, onMounted, watch, onUnmounted } from "vue";
 import { usePage } from "@inertiajs/vue3";
-import AppConfigurator from "./AppConfigurator.vue";
+import { router as inertiaRouter } from "@inertiajs/vue3";
 import NavLink from "@/Components/NavLink.vue";
 import DropdownLink from "@/Components/DropdownLink.vue";
 import AppMenu from "./AppMenu.vue";
 import axios from "axios";
 
-const { onMenuToggle, toggleDarkMode, isDarkTheme } = useLayout();
+const { onMenuToggle, toggleDarkMode, isDarkTheme, layoutState, resetMenu } =
+    useLayout();
 const page = usePage();
 
 // État local
 const isScrolled = ref(false);
-const isMobileMenuOpen = ref(false);
+
+// ⭐ NOUVEAU : Stockage des notifications temps réel
+const realtimeNotifications = ref([]);
+
+// Computed pour l'état du menu mobile
+const isMobileMenuOpen = computed(() => layoutState.staticMenuMobileActive);
 
 // --- DONNÉES COMPUTED ---
-const notifications = computed(() => page.props.auth.user?.notifications || []);
-const unreadNotifCount = computed(() => notifications.value.length);
+// ⭐ MODIFIÉ : Fusionner les notifications existantes avec celles temps réel
+const notifications = computed(() => {
+    const backendNotifs = page.props.auth.user?.notifications || [];
+    const allNotifs = [...realtimeNotifications.value, ...backendNotifs];
+    // Supprimer les doublons par id
+    return allNotifs.filter(
+        (v, i, a) => a.findIndex((t) => t.id === v.id) === i,
+    );
+});
+
+const unreadNotifCount = computed(
+    () => notifications.value.filter((n) => !n.read_at).length,
+);
 const unreadMsgCount = computed(
     () => page.props.auth.user?.unread_messages_count || 0,
 );
 
-// Couleurs dynamiques basées sur le thème
+// Couleurs dynamiques
 const topbarClasses = computed(() => {
     return {
         "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50":
@@ -39,13 +56,93 @@ const logoTextClasses = computed(() => {
     };
 });
 
-// --- FONCTIONS ---
+// Scroll automatique après navigation
+const scrollToTop = () => {
+    setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
+};
+
+// Fermer le menu après navigation
+let removeNavigationListener = null;
+let echoChannel = null; // ⭐ Pour stocker le channel Echo
+
+onMounted(() => {
+    window.addEventListener("scroll", handleScroll);
+
+    // Écouter la fin de navigation Inertia
+    removeNavigationListener = inertiaRouter.on("success", () => {
+        if (layoutState.staticMenuMobileActive) {
+            resetMenu();
+        }
+        scrollToTop();
+    });
+
+    // ⭐ NOUVEAU : Initialiser l'écoute des notifications temps réel
+    initRealtimeNotifications();
+});
+
+onUnmounted(() => {
+    window.removeEventListener("scroll", handleScroll);
+    if (removeNavigationListener) {
+        removeNavigationListener();
+    }
+    // ⭐ Nettoyer le channel Echo
+    if (echoChannel) {
+        echoChannel.stopListening();
+    }
+});
+
+// ⭐ NOUVELLE FONCTION : Initialiser les notifications temps réel
+const initRealtimeNotifications = () => {
+    const userId = page.props.auth.user?.id;
+
+    if (!userId || !window.Echo) {
+        console.log("Echo non disponible ou utilisateur non connecté");
+        return;
+    }
+
+    // Attendre que Echo soit prêt
+    const waitForEcho = setInterval(() => {
+        if (
+            window.Echo &&
+            window.Echo.connector &&
+            window.Echo.connector.socket
+        ) {
+            clearInterval(waitForEcho);
+            console.log("✅ Écoute des notifications temps réel activée");
+
+            echoChannel = window.Echo.private(
+                `App.Models.User.${userId}`,
+            ).notification((notification) => {
+                console.log("📨 Notification temps réel reçue:", notification);
+
+                // Ajouter la notification à la liste temps réel
+                const newNotif = {
+                    id: Date.now(),
+                    data: notification.data || notification,
+                    created_at: new Date().toISOString(),
+                    read_at: null,
+                };
+                realtimeNotifications.value.unshift(newNotif);
+
+                // Optionnel : jouer un son
+                // const audio = new Audio('/sounds/notification.mp3');
+                // audio.play().catch(() => {});
+            });
+        }
+    }, 500);
+};
+
+// --- FONCTIONS EXISTANTES (inchangées) ---
 const markAllAsRead = () => {
     if (unreadNotifCount.value > 0) {
         axios
             .post(route("notifications.markAsRead"))
             .then(() => {
                 page.props.auth.user.notifications = [];
+                // ⭐ Vider aussi les notifications temps réel
+                realtimeNotifications.value = [];
             })
             .catch((error) => {
                 console.error(
@@ -65,14 +162,9 @@ const formatDate = (dateString) => {
     });
 };
 
-// Détection du scroll
 const handleScroll = () => {
     isScrolled.value = window.scrollY > 10;
 };
-
-onMounted(() => {
-    window.addEventListener("scroll", handleScroll);
-});
 
 // Synchronisation du thème
 watch(isDarkTheme, (newVal) => {
@@ -84,23 +176,20 @@ watch(isDarkTheme, (newVal) => {
 });
 
 // Gestion du menu mobile
-const toggleMobileMenu = () => {
-    isMobileMenuOpen.value = !isMobileMenuOpen.value;
-    if (isMobileMenuOpen.value) {
-        document.body.style.overflow = "hidden";
-    } else {
-        document.body.style.overflow = "";
-    }
+const toggleMobileMenu = (event) => {
+    event.stopPropagation();
+    onMenuToggle();
 };
 
 const closeMobileMenu = () => {
-    isMobileMenuOpen.value = false;
-    document.body.style.overflow = "";
+    if (layoutState.staticMenuMobileActive) {
+        resetMenu();
+    }
 };
 </script>
 
 <template>
-    <!-- Topbar avec tous les effets d'origine -->
+    <!-- LE TEMPLATE RESTE EXACTEMENT IDENTIQUE -->
     <div
         class="layout-topbar fixed top-0 left-0 right-0 z-50 transition-all duration-300"
         :class="topbarClasses"
@@ -109,7 +198,6 @@ const closeMobileMenu = () => {
             <div class="flex justify-between items-center h-14 sm:h-16">
                 <!-- Section gauche - Logo et menu -->
                 <div class="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                    <!-- Bouton menu mobile -->
                     <button
                         class="lg:hidden w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center flex-shrink-0 relative z-50"
                         @click="toggleMobileMenu"
@@ -125,7 +213,6 @@ const closeMobileMenu = () => {
                         ></i>
                     </button>
 
-                    <!-- Bouton menu desktop -->
                     <button
                         class="hidden lg:flex w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors items-center justify-center flex-shrink-0"
                         @click="onMenuToggle"
@@ -133,13 +220,11 @@ const closeMobileMenu = () => {
                         <i class="pi pi-bars text-sm sm:text-base"></i>
                     </button>
 
-                    <!-- Logo -->
                     <NavLink
                         href="/dashboard"
                         class="flex items-center gap-2 sm:gap-3 group flex-shrink-0"
                         @click="closeMobileMenu"
                     >
-                        <!-- Image avec effets -->
                         <div class="relative flex-shrink-0">
                             <div
                                 class="absolute inset-0 rounded-full blur-xl transition-all duration-300"
@@ -156,8 +241,6 @@ const closeMobileMenu = () => {
                                 :class="{ 'brightness-90': isDarkTheme }"
                             />
                         </div>
-
-                        <!-- Texte du logo -->
                         <div class="flex flex-col">
                             <span
                                 class="font-black text-sm sm:text-base md:text-xl tracking-tight leading-none transition-colors"
@@ -179,9 +262,8 @@ const closeMobileMenu = () => {
                     </NavLink>
                 </div>
 
-                <!-- Section droite - Actions (avec toutes les fonctionnalités) -->
+                <!-- Section droite - Actions -->
                 <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    <!-- Contrôle du thème -->
                     <div
                         class="flex items-center gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-xl"
                     >
@@ -209,7 +291,7 @@ const closeMobileMenu = () => {
                         </button>
                     </div>
 
-                    <!-- Notifications avec tous les effets -->
+                    <!-- Notifications -->
                     <div class="relative">
                         <button
                             type="button"
@@ -236,7 +318,6 @@ const closeMobileMenu = () => {
                             </span>
                         </button>
 
-                        <!-- Panneau des notifications -->
                         <div
                             class="hidden bg-white dark:bg-gray-800 shadow-xl absolute right-0 mt-2 w-72 sm:w-80 py-2 rounded-xl border dark:border-gray-700 z-50"
                         >
@@ -297,7 +378,7 @@ const closeMobileMenu = () => {
                         </div>
                     </div>
 
-                    <!-- Menu utilisateur complet -->
+                    <!-- Menu utilisateur -->
                     <div class="relative">
                         <button
                             type="button"
@@ -331,7 +412,6 @@ const closeMobileMenu = () => {
                             ></i>
                         </button>
 
-                        <!-- Menu déroulant -->
                         <div
                             class="hidden bg-white dark:bg-gray-800 shadow-xl absolute right-0 mt-2 w-44 sm:w-48 py-1 rounded-xl border dark:border-gray-700 z-50"
                         >
@@ -379,6 +459,7 @@ const closeMobileMenu = () => {
         <div
             v-if="isMobileMenuOpen"
             class="fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-900 shadow-2xl z-[60] lg:hidden overflow-y-auto"
+            @click.stop
         >
             <AppMenu />
         </div>
@@ -393,11 +474,11 @@ const closeMobileMenu = () => {
 </template>
 
 <style scoped>
+/* Vos styles inchangés */
 .layout-topbar {
     transition: all 0.3s ease;
 }
 
-/* Garder les animations originales */
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -413,7 +494,6 @@ const closeMobileMenu = () => {
     animation: slideIn 0.2s ease;
 }
 
-/* Garder le style du toggle du thème */
 .theme-toggle {
     @apply relative overflow-hidden;
 }
@@ -427,7 +507,6 @@ const closeMobileMenu = () => {
     @apply scale-100;
 }
 
-/* Cache le texte du logo sur très petits écrans */
 @media (max-width: 380px) {
     .flex-col span:first-child {
         font-size: 0.875rem;
@@ -437,12 +516,10 @@ const closeMobileMenu = () => {
     }
 }
 
-/* Dark mode */
 .dark .layout-topbar {
     border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Line-clamp pour les notifications */
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;

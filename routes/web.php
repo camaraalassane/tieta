@@ -23,6 +23,7 @@ use App\Http\Controllers\ConcourConsulterController;
 use App\Http\Controllers\ConcourResultatController;
 use App\Http\Controllers\ConcourGestionController;
 use App\Http\Controllers\ConcourMessagerieController;
+use App\Http\Controllers\BroadcastMessageController;
 use App\Http\Controllers\CandidatMessagerieController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ConcourHistoriqueController;
@@ -128,7 +129,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dans le groupe middleware ['auth', 'verified']
 Route::get('/candidat-resultat/{id}/voir', [CandidatResultatController::class, 'view'])->name('candidat.resultat.view');
     // Profil Candidat (CORRIGÉ)
-
+    // Dans le groupe middleware ['auth', 'verified']
+    Route::get('/notifications/unread', [NotificationController::class, 'getUnread'])->name('notifications.unread');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markOneAsRead'])->name('notifications.read');
     // Détail d'une candidature
     Route::get('/candidature/{id}', [CandidatDossierController::class, 'show'])->name('candidature.show');
     Route::get('/candidature/{id}/receipt', [CandidatDossierController::class, 'receipt'])->name('candidature.receipt');
@@ -177,13 +180,20 @@ Route::middleware(['auth', 'verified', 'adminMiddleware'])->group(function () {
     Route::get('/concour-creerResultat/{id}/edit', [ConcourGestionController::class, 'edit'])->name('concour-gererResultat.edit');
 
     // --- 5. EXPORTS & MESSAGERIE ---
+    Route::get('/messagerie/refresh', [ConcourMessagerieController::class, 'refresh'])->name('messagerie.refresh');
     Route::get('/concour-resultat/{id}/export', [ConcourGestionController::class, 'exporterPdf'])->name('concours.resultat.export');
     Route::get('/resultats/{id}/view', [ConcourGestionController::class, 'viewPdf'])->name('resultats.view');
-
+    Route::post('/messagerie/load-more', [ConcourMessagerieController::class, 'loadMoreMessages'])->name('messagerie.load-more');
     Route::prefix('cour-messagerie')->name('messagerie.')->group(function () {
         Route::get('/', [ConcourMessagerieController::class, 'index'])->name('index');
         Route::post('/envoyer', [ConcourMessagerieController::class, 'store'])->name('store');
         Route::patch('/{id}/lire', [ConcourMessagerieController::class, 'markAsRead'])->name('read');
+    });
+    // Routes pour la diffusion de messages
+    Route::prefix('broadcast')->name('broadcast.')->group(function () {
+        Route::get('/', [BroadcastMessageController::class, 'index'])->name('index');
+        Route::post('/send', [BroadcastMessageController::class, 'send'])->name('send');
+        Route::post('/preview', [BroadcastMessageController::class, 'preview'])->name('preview');
     });
 
     // --- COMMUNIQUÉS ---

@@ -9,7 +9,7 @@ const props = defineProps({
     sectionIndex: { type: Number, default: 0 },
 });
 
-const { setActiveMenuItem } = useLayout(); // ⭐ On ne prend que setActiveMenuItem, pas onMenuToggle
+const { setActiveMenuItem } = useLayout();
 const page = usePage();
 const isExpanded = ref(false);
 
@@ -31,24 +31,20 @@ const can = (permissions) => {
     return searchPermissions.some((p) => userPermissions.includes(p));
 };
 
-const handleClick = (event) => {
-    if (props.item.disabled) {
-        event.preventDefault();
+const handleClick = () => {
+    if (props.item.disabled) return;
+
+    // Pour les items avec sous-menus
+    if (props.item.items) {
+        isExpanded.value = !isExpanded.value;
         return;
     }
 
-    // ⭐ Uniquement pour les items avec sous-menus
-    if (props.item.items) {
-        isExpanded.value = !isExpanded.value;
-    }
-
-    // ⭐ SUPPRIMÉ : onMenuToggle() - Ne ferme PAS le menu
-
+    // Pour les liens, on laisse le Link faire son travail
     if (props.item.command) {
-        props.item.command({ originalEvent: event, item: props.item });
+        props.item.command({ item: props.item });
     }
 
-    // ⭐ Marque l'item comme actif
     setActiveMenuItem(`${props.sectionIndex}-${props.index}`);
 };
 
@@ -70,7 +66,6 @@ const badgeClass = computed(() => {
         class="menu-item-compact"
         :class="{ active: isActive, expanded: isExpanded }"
     >
-        <!-- Lien simple -->
         <Link
             v-if="item.to && !item.items"
             :href="item.to"
@@ -79,17 +74,14 @@ const badgeClass = computed(() => {
         >
             <i :class="['pi', item.icon, 'menu-icon-small']"></i>
             <span class="menu-label-small">{{ item.label }}</span>
-
             <span v-if="item.badge" :class="['menu-badge-small', badgeClass]">
                 {{ item.badge }}
             </span>
-
             <span v-if="item.description" class="menu-tooltip-small">
                 {{ item.description }}
             </span>
         </Link>
 
-        <!-- Parent avec sous-menus -->
         <div
             v-else-if="item.items"
             class="menu-parent-compact"
@@ -97,18 +89,15 @@ const badgeClass = computed(() => {
         >
             <i :class="['pi', item.icon, 'menu-icon-small']"></i>
             <span class="menu-label-small">{{ item.label }}</span>
-
             <span v-if="item.badge" :class="['menu-badge-small', badgeClass]">
                 {{ item.badge }}
             </span>
-
             <i
                 class="pi pi-chevron-down menu-arrow-small"
                 :class="{ rotated: isExpanded }"
             ></i>
         </div>
 
-        <!-- Sous-menus -->
         <Transition name="submenu-compact">
             <ul v-if="item.items && isExpanded" class="submenu-items-compact">
                 <AppMenuItem
@@ -220,7 +209,6 @@ const badgeClass = computed(() => {
     z-index: 1000;
 }
 
-/* Élément actif */
 .menu-item-compact.active {
     > .menu-link-compact,
     > .menu-parent-compact {
@@ -245,7 +233,6 @@ const badgeClass = computed(() => {
     }
 }
 
-/* Sous-menus compacts */
 .submenu-items-compact {
     list-style: none;
     padding: 2px 0 2px 24px;
@@ -263,7 +250,6 @@ const badgeClass = computed(() => {
     }
 }
 
-/* Animation */
 .submenu-compact-enter-active,
 .submenu-compact-leave-active {
     transition: all 0.2s ease;
@@ -284,7 +270,6 @@ const badgeClass = computed(() => {
     transform: translateX(0);
 }
 
-/* Dark mode */
 .dark {
     .menu-item-compact.active {
         > .menu-link-compact,

@@ -82,6 +82,29 @@ const model = computed(() => {
                 ],
             },
             {
+                label: "COMMUNICATION",
+                icon: "pi-comments",
+                items: [
+                    {
+                        label: "Messagerie",
+                        icon: "pi-envelope",
+                        to: "/cour-messagerie",
+                        badge:
+                            user?.unread_messages_count > 0
+                                ? user.unread_messages_count
+                                : null,
+                        badgeClass: "danger",
+                        description: "Messages internes",
+                    },
+                    {
+                        label: "Diffusion de messages",
+                        icon: "pi-send",
+                        to: "/broadcast",
+                        description: "Envoyer un message à tous les candidats",
+                    },
+                ],
+            },
+            {
                 label: "DÉLIBÉRATIONS",
                 icon: "pi-file-pdf",
                 items: [
@@ -96,17 +119,6 @@ const model = computed(() => {
                         icon: "pi-copy",
                         to: "/concour-gererResultat",
                         description: "Historique",
-                    },
-                    {
-                        label: "Messagerie",
-                        icon: "pi-envelope",
-                        to: "/cour-messagerie",
-                        badge:
-                            user?.unread_messages_count > 0
-                                ? user.unread_messages_count
-                                : null,
-                        badgeClass: "danger",
-                        description: "Messages internes",
                     },
                     {
                         label: "Historique candidatures",

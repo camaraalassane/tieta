@@ -14,6 +14,39 @@
 namespace App\Models{
 /**
  * @property int $id
+ * @property string $num_dossier
+ * @property string $demande_lettre
+ * @property int $profil_id
+ * @property int $concour_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string $nationalite
+ * @property string|null $resultat
+ * @property string|null $motif
+ * @property-read \App\Models\Concour $concour
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CandidaturePiece> $piecesChargees
+ * @property-read int|null $pieces_chargees_count
+ * @property-read \App\Models\Profil|null $profil
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereConcourId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereDemandeLettre($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereMotif($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereNationalite($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereNumDossier($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereProfilId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereResultat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereUpdatedAt($value)
+ */
+	class Candidature extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * @property int $id
  * @property int $candidature_id
  * @property int $piece_concour_id
  * @property string $nom_fichier
@@ -46,16 +79,17 @@ namespace App\Models{
  * @property string $diplome_min
  * @property \Illuminate\Support\Carbon|null $date_limite
  * @property int $age
- * @property string $statut
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string $statut
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $admins
  * @property-read int|null $admins_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\candidature> $candidatures
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Candidature> $candidatures
  * @property-read int|null $candidatures_count
+ * @property-read mixed $date_formatee
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PieceConcour> $piecesComplementaires
  * @property-read int|null $pieces_complementaires_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\resultat> $resultats
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Resultat> $resultats
  * @property-read int|null $resultats_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour newQuery()
@@ -103,13 +137,13 @@ namespace App\Models{
  * @property int $destinataire_id
  * @property string $objet
  * @property string $texte
- * @property int $lu
+ * @property bool $lu
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property int $concour_id
- * @property-read \App\Models\Concour|null $concour
- * @property-read \App\Models\User|null $destinataire
- * @property-read \App\Models\User|null $emetteur
+ * @property-read \App\Models\Concour $concour
+ * @property-read \App\Models\User $destinataire
+ * @property-read \App\Models\User $emetteur
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message query()
@@ -161,7 +195,7 @@ namespace App\Models{
  * @property int $concour_id
  * @property string $nom_document
  * @property string $slug
- * @property int $is_required
+ * @property bool $is_required
  * @property string|null $description
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -179,6 +213,88 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PieceConcour whereUpdatedAt($value)
  */
 	class PieceConcour extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * @property int $id
+ * @property string|null $nom
+ * @property string|null $prenom
+ * @property string|null $email
+ * @property string|null $region
+ * @property string|null $carte_identite
+ * @property string|null $photo_identite
+ * @property string|null $DEF
+ * @property string|null $BAC
+ * @property string|null $DUT
+ * @property string|null $Licence
+ * @property string|null $Master
+ * @property string|null $Doctorat
+ * @property string|null $permis
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property int|null $telephone
+ * @property int $user_id
+ * @property string|null $BT
+ * @property string|null $CAP
+ * @property string|null $date_naissance
+ * @property string|null $lieu_naissance
+ * @property string|null $sexe
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereBAC($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereBT($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereCAP($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereCarteIdentite($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereDEF($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereDUT($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereDateNaissance($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereDoctorat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereLicence($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereLieuNaissance($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereMaster($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereNom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil wherePermis($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil wherePhotoIdentite($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil wherePrenom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereRegion($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereSexe($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereTelephone($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Profil whereUserId($value)
+ */
+	class Profil extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * @property int $id
+ * @property string $intitule
+ * @property string|null $fichier
+ * @property int|null $nombre_candidat
+ * @property int $concour_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string $statut
+ * @property-read \App\Models\Concour $concour
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereConcourId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereFichier($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereIntitule($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereNombreCandidat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereStatut($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Resultat whereUpdatedAt($value)
+ */
+	class Resultat extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -209,8 +325,39 @@ namespace App\Models{
 namespace App\Models{
 /**
  * @property int $id
+ * @property int $id_concours
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $communique
+ * @property string|null $communique_titre
+ * @property \Illuminate\Support\Carbon|null $communique_published_at
+ * @property bool $communique_is_active
+ * @property \Illuminate\Support\Carbon|null $date_limite
+ * @property-read \App\Models\Concour|null $concour
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement activeCommuniques()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement notExpired()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereCommunique($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereCommuniqueIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereCommuniquePublishedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereCommuniqueTitre($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereDateLimite($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereIdConcours($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Traitement whereUpdatedAt($value)
+ */
+	class Traitement extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * @property int $id
  * @property string $name
  * @property string $email
+ * @property string $prenom
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property mixed $password
  * @property string|null $remember_token
@@ -243,146 +390,11 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder|User withoutPermission($permissions)
  * @method static \Illuminate\Database\Eloquent\Builder|User withoutRole($roles, $guard = null)
  * @mixin \Eloquent
- * @property string|null $prenom
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\candidature> $candidatures
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Candidature> $candidatures
  * @property-read int|null $candidatures_count
- * @property-read \App\Models\profil|null $profil
+ * @property-read \App\Models\Profil|null $profil
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePrenom($value)
  */
 	class User extends \Eloquent {}
-}
-
-namespace App\Models{
-/**
- * @property int $id
- * @property string $num_dossier
- * @property string $demande_lettre
- * @property string $nationalite
- * @property int $profil_id
- * @property int $concour_id
- * @property string|null $resultat
- * @property string|null $motif
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Concour $concour
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CandidaturePiece> $piecesChargees
- * @property-read int|null $pieces_chargees_count
- * @property-read \App\Models\profil|null $profil
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereConcourId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereDemandeLettre($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereMotif($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereNationalite($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereNumDossier($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereProfilId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereResultat($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|candidature whereUpdatedAt($value)
- */
-	class candidature extends \Eloquent {}
-}
-
-namespace App\Models{
-/**
- * @property int $id
- * @property int $user_id
- * @property string|null $nom
- * @property string|null $prenom
- * @property string|null $date_naissance
- * @property string|null $lieu_naissance
- * @property string|null $email
- * @property int|null $telephone
- * @property string|null $region
- * @property string|null $carte_identite
- * @property string|null $photo_identite
- * @property string|null $DEF
- * @property string|null $BAC
- * @property string|null $DUT
- * @property string|null $Licence
- * @property string|null $Master
- * @property string|null $Doctorat
- * @property string|null $permis
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property string|null $BT
- * @property string|null $CAP
- * @property-read \App\Models\User $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereBAC($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereBT($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereCAP($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereCarteIdentite($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereDEF($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereDUT($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereDateNaissance($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereDoctorat($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereEmail($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereLicence($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereLieuNaissance($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereMaster($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereNom($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil wherePermis($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil wherePhotoIdentite($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil wherePrenom($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereRegion($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereTelephone($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|profil whereUserId($value)
- */
-	class profil extends \Eloquent {}
-}
-
-namespace App\Models{
-/**
- * @property int $id
- * @property string $intitule
- * @property string|null $fichier
- * @property string $statut
- * @property int|null $nombre_candidat
- * @property int $concour_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Concour $concour
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereConcourId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereFichier($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereIntitule($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereNombreCandidat($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereStatut($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|resultat whereUpdatedAt($value)
- */
-	class resultat extends \Eloquent {}
-}
-
-namespace App\Models{
-/**
- * @property int $id
- * @property int $id_concours
- * @property int $id_profil
- * @property int $id_candidature
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement whereIdCandidature($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement whereIdConcours($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement whereIdProfil($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|traitement whereUpdatedAt($value)
- */
-	class traitement extends \Eloquent {}
 }
 

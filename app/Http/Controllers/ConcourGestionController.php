@@ -5,15 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Concours;
 use App\Models\Resultat;
 use App\Models\Candidature;
+use App\Notifications\ResultatNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Inertia\Inertia;
 
 class ConcourGestionController extends Controller
 {
-   public function index(Request $request)
+    public function index(Request $request)
     {
         $user = Auth::user();
 
@@ -24,16 +26,14 @@ class ConcourGestionController extends Controller
         $query = Resultat::with(['concour']);
 
         if (!$user->hasRole('superadmin')) {
-            $query->whereHas('concour.admins', function ($q) use ($user) { 
+            $query->whereHas('concour.admins', function ($q) use ($user) {
                 $q->where('users.id', $user->id);
             });
         }
 
-        /** @var \Illuminate\Pagination\LengthAwarePaginator $resultats */
         $resultats = $query->paginate(10);
 
         $resultats->through(function ($res) {
-            // On ne charge que le COMPTAGE pour la liste principale (très rapide)
             $res->nbAdmis = Candidature::where('concour_id', $res->concour_id)
                 ->where('resultat', 'Admis')
                 ->count();
@@ -46,28 +46,25 @@ class ConcourGestionController extends Controller
         ]);
     }
 
-    /**
-     * Nouvelle méthode pour la pagination interne au modal
-     */
     public function getCandidats(Request $request, $id)
     {
         $resultat = Resultat::findOrFail($id);
-        
+
         $search = $request->input('search');
-        
+
         $query = Candidature::with(['profil.user'])
             ->where('concour_id', $resultat->concour_id)
-            ->whereIn('resultat', ['Admis', 'Rejété']);
+            ->whereIn('resultat', ['Admis', 'Rejeté']);
 
         if ($search) {
-            $query->whereHas('profil', function($q) use ($search) {
+            $query->whereHas('profil', function ($q) use ($search) {
                 $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('prenom', 'like', "%{$search}%");
+                    ->orWhere('prenom', 'like', "%{$search}%");
             })->orWhere('num_dossier', 'like', "%{$search}%");
         }
 
         $candidats = $query->orderByRaw("CASE WHEN resultat = 'Admis' THEN 1 ELSE 2 END")
-                           ->paginate(50); // 50 candidats par page dans le modal
+            ->paginate(50);
 
         return response()->json($candidats);
     }
@@ -85,14 +82,31 @@ class ConcourGestionController extends Controller
             return $this->publierResultat($resultat);
         }
 
+        // ⭐ MODIFICATION ICI : Publication du résultat individuel avec notification
         if ($request->has('candidature_id')) {
-            $candidature = Candidature::findOrFail($request->candidature_id);
+            $candidature = Candidature::with('user', 'concour')->findOrFail($request->candidature_id);
+            $ancienStatut = $candidature->resultat;
+            $nouveauStatut = $request->nouveau_statut;
+
             $candidature->update([
-                'resultat' => $request->nouveau_statut,
+                'resultat' => $nouveauStatut,
                 'motif' => $request->motif
             ]);
-            return response()->json(['success' => true]);
+
+            // ⭐ NOTIFICATION TEMPS RÉEL - Uniquement si le statut a changé
+            if ($ancienStatut !== $nouveauStatut && $candidature->user) {
+                try {
+                    $candidature->user->notify(new ResultatNotification($candidature, $nouveauStatut));
+                    Log::info("Notification de résultat envoyée au candidat ID: {$candidature->user->id} - Statut: {$nouveauStatut}");
+                } catch (\Exception $e) {
+                    Log::error("Erreur envoi notification: " . $e->getMessage());
+                }
+            }
+
+            return response()->json(['success' => true, 'message' => 'Résultat mis à jour et candidat notifié']);
         }
+
+        return response()->json(['success' => false], 400);
     }
 
     private function publierResultat(Resultat $resultat)
@@ -103,9 +117,27 @@ class ConcourGestionController extends Controller
         Storage::disk('public')->put($path, $pdf->output());
 
         $resultat->update(['statut' => 'Publié', 'fichier' => '/storage/' . $path]);
-        return back();
-    }
 
+        // ⭐ OPTIONNEL : Notifier tous les candidats que le résultat est publié
+        try {
+            $candidatures = Candidature::where('concour_id', $resultat->concour_id)
+                ->with('user')
+                ->get();
+
+            $notifiedCount = 0;
+            foreach ($candidatures as $candidature) {
+                if ($candidature->user && $candidature->resultat) {
+                    $candidature->user->notify(new ResultatNotification($candidature, $candidature->resultat));
+                    $notifiedCount++;
+                }
+            }
+            Log::info("Publication globale: {$notifiedCount} candidats notifiés pour le concours ID: {$resultat->concour_id}");
+        } catch (\Exception $e) {
+            Log::error("Erreur notification publication globale: " . $e->getMessage());
+        }
+
+        return back()->with('success', 'Résultat publié et candidats notifiés');
+    }
 
     public function exporterPdf($id)
     {
@@ -124,10 +156,10 @@ class ConcourGestionController extends Controller
     private function getSortedCandidats($concourId)
     {
         return Candidature::with(['profil' => function ($q) {
-                $q->select('id', 'user_id', 'nom', 'prenom', 'date_naissance', 'lieu_naissance');
-            }])
+            $q->select('id', 'user_id', 'nom', 'prenom', 'date_naissance', 'lieu_naissance');
+        }])
             ->where('concour_id', $concourId)
-            ->whereIn('resultat', ['Admis', 'Rejété'])
+            ->whereIn('resultat', ['Admis', 'Rejeté'])
             ->orderByRaw("CASE WHEN resultat = 'Admis' THEN 1 ELSE 2 END")
             ->get();
     }
@@ -154,7 +186,7 @@ class ConcourGestionController extends Controller
             abort(403);
         }
         return inertia('Concours/creerResultat', ['resultat' => $resultat, 'isEditing' => true]);
-    } 
+    }
 
     public function viewPdf($id)
     {

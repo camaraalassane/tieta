@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Concour;
+use App\Models\User;
+use App\Notifications\NewConcoursNotification;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; 
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\ConcourIndexRequest;
@@ -17,15 +19,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Notification;
 
 class ConcourController extends Controller implements HasMiddleware
 {
-    /**
-     * Correction P1013 : Définition statique des middlewares
-     */
     public static function middleware(): array
     {
-        // Note : J'ai gardé votre préfixe 'concour:' mais vérifiez s'il ne s'agit pas de 'permission:' 
         return [
             (new Middleware('permission:create concours'))->only(['create', 'store']),
             (new Middleware('permission:read concours'))->only(['index', 'show']),
@@ -34,45 +33,36 @@ class ConcourController extends Controller implements HasMiddleware
         ];
     }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index(ConcourIndexRequest $request)
     {
-        // Correction P1013 : Utilisation de Auth::user()
         $currentUser = Auth::user();
 
-        // BLOQUER L'ACCÈS
         if (!$currentUser || !$currentUser->hasAnyRole(['superadmin', 'admin'])) {
             abort(403, "Vous n'avez pas l'autorisation d'accéder à cette page.");
         }
 
         $query = Concour::query()->with('piecesComplementaires');
 
-        // Filtrage par rôle (Seul le superadmin voit tout)
         if (!$currentUser->hasRole('superadmin')) {
-            $query->whereHas('admins', function($q) use ($currentUser) {
+            $query->whereHas('admins', function ($q) use ($currentUser) {
                 $q->where('user_id', $currentUser->id);
             });
         }
 
-        // Gestion de la recherche
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('intitule', 'LIKE', "%" . $request->search . "%")
-                  ->orWhere('organisateur', 'LIKE', "%" . $request->search . "%")
-                  ->orWhere('id', 'LIKE', "%" . $request->search . "%");
+                    ->orWhere('organisateur', 'LIKE', "%" . $request->search . "%")
+                    ->orWhere('id', 'LIKE', "%" . $request->search . "%");
             });
         }
 
-        // Gestion du tri
         if ($request->filled(['field', 'order'])) {
             $query->orderBy((string)$request->field, (string)$request->order);
         } else {
             $query->orderBy("created_at", "desc");
         }
 
-        // Transformation des données
         $concours = $query->get()->map(function ($concour) {
             return [
                 'id'            => $concour->id,
@@ -115,7 +105,7 @@ class ConcourController extends Controller implements HasMiddleware
             'intitule'      => 'required|string|max:255',
             'description'   => 'required|string',
             'organisateur'  => 'required|string',
-            'avis'          => 'required', 
+            'avis'          => 'required',
             'diplome_min'   => 'nullable|string',
             'date_limite'   => 'required|date',
             'age'           => 'required|integer',
@@ -124,10 +114,10 @@ class ConcourController extends Controller implements HasMiddleware
             'pieces.*.nom_document' => 'required|string',
             'pieces.*.is_required'  => 'required|boolean',
         ]);
-    
+
         if ($request->hasFile('avis')) {
             $path = $request->file('avis')->store('Uploads/Avis', 'public');
-            $validatedData['avis'] = $path; 
+            $validatedData['avis'] = $path;
         }
 
         $concours = Concour::create($validatedData);
@@ -143,6 +133,25 @@ class ConcourController extends Controller implements HasMiddleware
             }
         }
 
+        // ⭐ NOTIFICATION - Rôle corrigé de 'candidat' à 'operator'
+        try {
+            // Récupérer tous les utilisateurs avec le rôle 'operator' (candidats)
+            $candidats = User::whereHas('roles', function ($q) {
+                $q->where('name', 'operator'); // Changé de 'candidat' à 'operator'
+            })->get();
+
+            \Illuminate\Support\Facades\Log::info("Nombre de candidats trouvés: " . $candidats->count());
+
+            if ($candidats->count() > 0) {
+                \Illuminate\Support\Facades\Notification::send($candidats, new \App\Notifications\NewConcoursNotification($concours));
+                \Illuminate\Support\Facades\Log::info("Notification envoyée à {$candidats->count()} candidats pour le concours: {$concours->intitule}");
+            } else {
+                \Illuminate\Support\Facades\Log::warning("Aucun candidat avec le rôle 'operator' trouvé");
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Erreur lors de l'envoi des notifications: " . $e->getMessage());
+        }
+
         return redirect()->route('concours.index')->with('success', 'Concours créé avec succès');
     }
 
@@ -150,14 +159,14 @@ class ConcourController extends Controller implements HasMiddleware
     {
         try {
             DB::beginTransaction();
-            
+
             $concours = Concour::findOrFail($id);
 
             $validatedData = $request->validate([
                 'intitule'              => 'required|string|max:255',
                 'description'           => 'nullable|string',
                 'organisateur'          => 'required|string',
-                'avis'                  => 'nullable', 
+                'avis'                  => 'nullable',
                 'diplome_min'           => 'nullable|string',
                 'date_limite'           => 'required|date',
                 'age'                   => 'nullable|integer',
@@ -176,7 +185,7 @@ class ConcourController extends Controller implements HasMiddleware
             if ($request->has('pieces')) {
                 foreach ($request->pieces as $pieceData) {
                     $concours->piecesComplementaires()->updateOrCreate(
-                        ['id' => $pieceData['id'] ?? null], 
+                        ['id' => $pieceData['id'] ?? null],
                         [
                             'nom_document' => $pieceData['nom_document'],
                             'description'  => $pieceData['description'] ?? null,
@@ -201,7 +210,6 @@ class ConcourController extends Controller implements HasMiddleware
 
             DB::commit();
             return back()->with('success', 'Le concours "' . $concours->intitule . '" a été mis à jour.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Erreur Update Concours ID {$id} : " . $e->getMessage());
@@ -209,13 +217,13 @@ class ConcourController extends Controller implements HasMiddleware
         }
     }
 
-    public function destroy(Concour $concour) 
+    public function destroy(Concour $concour)
     {
         $currentUser = Auth::user();
         if (!$currentUser || !$currentUser->hasRole('superadmin')) {
             abort(403, "Action réservée au superadmin.");
         }
-        
+
         $concour->delete();
         return back()->with('success', 'Concours supprimé avec succès.');
     }
