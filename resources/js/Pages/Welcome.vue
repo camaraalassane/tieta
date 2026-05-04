@@ -2,6 +2,8 @@
 import { Head, Link } from "@inertiajs/vue3";
 import { ref, onMounted, onUnmounted } from "vue";
 import Tag from "primevue/tag";
+import Dialog from "primevue/dialog";
+import Button from "primevue/button";
 
 defineProps({
     canLogin: Boolean,
@@ -64,6 +66,10 @@ const currentImageIndex = ref(0);
 let heroInterval = null;
 let imageInterval = null;
 
+// ⭐ Dialog pour afficher le contenu complet du communiqué
+const showCommuniqueDialog = ref(false);
+const selectedCommunique = ref(null);
+
 // Rotation automatique du texte toutes les 5 secondes
 onMounted(() => {
     heroInterval = setInterval(() => {
@@ -91,10 +97,23 @@ const getFileName = (path) => {
 const getCardDelay = (index) => {
     return { animationDelay: `${index * 0.1}s` };
 };
+
+// ⭐ Ouvrir le dialog avec le contenu complet du communiqué
+const openCommunique = (communique) => {
+    selectedCommunique.value = communique;
+    showCommuniqueDialog.value = true;
+};
+
+// ⭐ Tronquer le texte pour l'aperçu
+const truncateText = (text, maxLength = 100) => {
+    if (!text) return "";
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+};
 </script>
 
 <template>
-    <Head title="Accueil - Plateforme Concours DTTIA" />
+    <Head title="Accueil - Plateforme Concours FAMa" />
 
     <div
         class="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900"
@@ -118,8 +137,8 @@ const getCardDelay = (index) => {
                                     class="bg-white dark:bg-gray-800 rounded-full p-0.5"
                                 >
                                     <img
-                                        src="/Images/DTTIA.jpeg"
-                                        alt="DTTIA"
+                                        src="/Images/Fama.png"
+                                        alt="FAMa"
                                         class="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover transform group-hover:scale-110 transition-transform duration-300"
                                     />
                                 </div>
@@ -128,7 +147,7 @@ const getCardDelay = (index) => {
                         <div class="flex flex-col items-start">
                             <span
                                 class="text-sm md:text-xl font-black tracking-tighter text-emerald-500 leading-tight"
-                                >DTTIA</span
+                                >FAMa</span
                             >
                             <span
                                 class="text-[8px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -287,7 +306,8 @@ const getCardDelay = (index) => {
                         <div
                             v-for="communique in communiquesActifs"
                             :key="communique.id"
-                            class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                            class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                            @click="openCommunique(communique)"
                         >
                             <div
                                 class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-4"
@@ -317,6 +337,14 @@ const getCardDelay = (index) => {
                                     <i class="pi pi-calendar mr-1"></i>
                                     {{ communique.published_at }}
                                 </div>
+                                <!-- ⭐ Service du concours -->
+                                <div
+                                    v-if="communique.service_nom"
+                                    class="text-sm text-gray-500 dark:text-gray-400 mb-2"
+                                >
+                                    <i class="pi pi-building mr-1"></i>
+                                    Service : {{ communique.service_nom }}
+                                </div>
                                 <div
                                     class="text-sm text-gray-500 dark:text-gray-400 mb-3"
                                 >
@@ -326,7 +354,21 @@ const getCardDelay = (index) => {
                                 <div
                                     class="text-gray-600 dark:text-gray-300 whitespace-pre-wrap line-clamp-3"
                                 >
-                                    {{ communique.contenu }}
+                                    {{ truncateText(communique.contenu, 120) }}
+                                </div>
+                                <!-- ⭐ Indicateur de fichier joint -->
+                                <div
+                                    v-if="communique.fichier_url"
+                                    class="mt-3 flex items-center gap-1 text-emerald-500 text-sm"
+                                >
+                                    <i class="pi pi-paperclip"></i>
+                                    <span>Pièce jointe disponible</span>
+                                </div>
+                                <div
+                                    class="mt-3 text-emerald-500 text-sm flex items-center gap-1"
+                                >
+                                    <span>Cliquez pour voir plus</span>
+                                    <i class="pi pi-arrow-right text-xs"></i>
                                 </div>
                             </div>
                         </div>
@@ -413,6 +455,14 @@ const getCardDelay = (index) => {
                             >
                                 {{ item.intitule || item.nom }}
                             </h3>
+                            <!-- ⭐ Service du concours -->
+                            <div
+                                v-if="item.service"
+                                class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2"
+                            >
+                                <i class="pi pi-building"></i>
+                                <span>{{ item.service.nom }}</span>
+                            </div>
                             <p
                                 class="text-gray-500 dark:text-gray-400 text-sm mb-6 line-clamp-3"
                             >
@@ -485,6 +535,12 @@ const getCardDelay = (index) => {
                                         >
                                             Concours
                                         </th>
+                                        <!-- ⭐ Colonne Service AVANT Statut -->
+                                        <th
+                                            class="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                        >
+                                            Service
+                                        </th>
                                         <th
                                             class="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                                         >
@@ -510,6 +566,27 @@ const getCardDelay = (index) => {
                                                 class="font-semibold text-gray-800 dark:text-white text-sm md:text-base"
                                             >
                                                 {{ res.intitule }}
+                                            </div>
+                                        </td>
+                                        <!-- ⭐ Colonne Service -->
+                                        <td class="px-4 md:px-6 py-3 md:py-4">
+                                            <div
+                                                class="text-gray-600 dark:text-gray-300 text-sm"
+                                            >
+                                                <span
+                                                    v-if="res.service_nom"
+                                                    class="flex items-center gap-1"
+                                                >
+                                                    <i
+                                                        class="pi pi-building text-emerald-500 text-xs"
+                                                    ></i>
+                                                    {{ res.service_nom }}
+                                                </span>
+                                                <span
+                                                    v-else
+                                                    class="text-gray-400 italic text-xs"
+                                                    >-</span
+                                                >
                                             </div>
                                         </td>
                                         <td class="px-4 md:px-6 py-3 md:py-4">
@@ -552,7 +629,7 @@ const getCardDelay = (index) => {
                                         "
                                     >
                                         <td
-                                            colspan="3"
+                                            colspan="4"
                                             class="px-6 py-12 text-center"
                                         >
                                             <i
@@ -604,6 +681,92 @@ const getCardDelay = (index) => {
             </div>
         </main>
 
+        <!-- ⭐ Dialog pour afficher le contenu complet du communiqué -->
+        <Dialog
+            v-model:visible="showCommuniqueDialog"
+            :header="selectedCommunique?.titre || 'Communiqué'"
+            modal
+            :style="{ width: '90vw', maxWidth: '700px' }"
+            class="communique-dialog"
+        >
+            <div v-if="selectedCommunique" class="p-2">
+                <!-- En-tête avec métadonnées -->
+                <div
+                    class="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700"
+                >
+                    <div class="flex items-center gap-1 text-sm text-gray-500">
+                        <i class="pi pi-calendar"></i>
+                        <span>{{ selectedCommunique.published_at }}</span>
+                    </div>
+                    <div
+                        v-if="selectedCommunique.service_nom"
+                        class="flex items-center gap-1 text-sm text-gray-500"
+                    >
+                        <i class="pi pi-building"></i>
+                        <span>{{ selectedCommunique.service_nom }}</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-sm text-gray-500">
+                        <i class="pi pi-tag"></i>
+                        <span>{{ selectedCommunique.concour_intitule }}</span>
+                    </div>
+                    <Tag value="Officiel" severity="success" size="small" />
+                </div>
+
+                <!-- Contenu complet -->
+                <div class="prose prose-sm max-w-none dark:prose-invert mb-4">
+                    <p
+                        class="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed"
+                    >
+                        {{ selectedCommunique.contenu }}
+                    </p>
+                </div>
+
+                <!-- ⭐ Fichier joint -->
+                <div
+                    v-if="selectedCommunique.fichier_url"
+                    class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+                >
+                    <h4
+                        class="text-sm font-semibold mb-2 flex items-center gap-2"
+                    >
+                        <i class="pi pi-paperclip text-emerald-500"></i>
+                        Pièce jointe
+                    </h4>
+                    <a
+                        :href="selectedCommunique.fichier_url"
+                        target="_blank"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                    >
+                        <i class="pi pi-file-pdf text-red-500"></i>
+                        <span>{{
+                            selectedCommunique.fichier_nom ||
+                            "Télécharger le fichier"
+                        }}</span>
+                        <i class="pi pi-external-link text-xs"></i>
+                    </a>
+                </div>
+
+                <!-- Date limite si présente -->
+                <div
+                    v-if="selectedCommunique.date_limite"
+                    class="mt-4 text-sm text-gray-500"
+                >
+                    <i class="pi pi-clock mr-1"></i>
+                    Date limite : {{ selectedCommunique.date_limite }}
+                </div>
+            </div>
+
+            <template #footer>
+                <Button
+                    label="Fermer"
+                    icon="pi pi-times"
+                    @click="showCommuniqueDialog = false"
+                    outlined
+                    severity="secondary"
+                />
+            </template>
+        </Dialog>
+
         <!-- Footer -->
         <footer
             class="border-t border-gray-200 dark:border-gray-800 mt-12 md:mt-20 py-6 md:py-8"
@@ -611,7 +774,7 @@ const getCardDelay = (index) => {
             <div
                 class="max-w-7xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-xs md:text-sm"
             >
-                © 2026 DTTIA Recrutement - Tous droits réservés
+                © 2026 FAMa Recrutement - Tous droits réservés
             </div>
         </footer>
     </div>
@@ -680,5 +843,26 @@ const getCardDelay = (index) => {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #059669;
+}
+
+/* Style du dialog */
+:deep(.communique-dialog .p-dialog-header) {
+    background: linear-gradient(to right, #10b981, #059669);
+    color: white;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+:deep(.communique-dialog .p-dialog-header .p-dialog-title) {
+    color: white;
+    font-weight: 700;
+}
+
+:deep(.communique-dialog .p-dialog-header .p-dialog-header-icon) {
+    color: white;
+}
+
+:deep(.communique-dialog .p-dialog-header .p-dialog-header-icon:hover) {
+    background: rgba(255, 255, 255, 0.2);
 }
 </style>

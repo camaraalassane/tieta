@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch } from "vue";
 import { router, Head, Link } from "@inertiajs/vue3";
 import AppLayout from "@/sakai/layout/AppLayout.vue";
 import Select from "primevue/select";
@@ -23,6 +23,10 @@ const props = defineProps({
     candidatures: Object,
     selectedConcourId: [Number, String],
     filters: Object,
+    user_role: String,
+    is_superadmin: Boolean,
+    is_gerant: Boolean,
+    is_admin: Boolean,
 });
 
 const confirm = useConfirm();
@@ -33,9 +37,20 @@ const selectedConcour = ref(
     props.selectedConcourId ? Number(props.selectedConcourId) : null,
 );
 const expandedRows = ref([]);
-
-// Recherche globale uniquement
 const searchQuery = ref(props.filters?.search || "");
+
+// Formatage de date
+const formatDate = (dateString) => {
+    if (!dateString) return "Non définie";
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date);
+};
 
 // Debounce pour la recherche
 let searchTimeout;
@@ -44,7 +59,6 @@ watch(searchQuery, (newVal) => {
     searchTimeout = setTimeout(() => applySearch(), 300);
 });
 
-// Appliquer la recherche
 const applySearch = () => {
     if (!selectedConcour.value) return;
 
@@ -61,7 +75,6 @@ const applySearch = () => {
     );
 };
 
-// Réinitialiser la recherche
 const resetSearch = () => {
     searchQuery.value = "";
 };
@@ -81,7 +94,7 @@ watch(selectedConcour, (newVal) => {
     }
 });
 
-// Mise à jour du motif avec debounce
+// Mise à jour du motif
 let motifTimeout;
 const updateMotif = (id, newMotif) => {
     clearTimeout(motifTimeout);
@@ -170,472 +183,393 @@ const rowClass = (data) => {
         <Head title="Gestion des Candidatures" />
         <ConfirmDialog />
 
-        <div class="p-fluid px-4 md:px-6 lg:px-8">
+        <div class="page-container">
             <!-- En-tête -->
-            <div class="grid mb-6">
-                <div class="col-12">
-                    <Card
-                        class="shadow-lg border-none overflow-hidden bg-gradient-to-r from-emerald-50 to-white dark:from-emerald-900/20 dark:to-gray-900"
-                    >
-                        <template #content>
-                            <div
-                                class="flex flex-column lg:flex-row align-items-center justify-content-between gap-4"
-                            >
-                                <div class="flex align-items-center gap-4">
-                                    <div
-                                        class="w-16 h-16 bg-emerald-500 border-round-xl flex align-items-center justify-center"
-                                    >
-                                        <i
-                                            class="pi pi-users text-white text-3xl"
-                                        ></i>
-                                    </div>
-                                    <div>
-                                        <h1
-                                            class="text-3xl font-bold text-900 m-0 mb-2"
-                                        >
-                                            Gestion des candidatures
-                                        </h1>
-                                        <p
-                                            class="text-600 m-0 flex align-items-center gap-2"
-                                        >
-                                            <i
-                                                class="pi pi-check-circle text-emerald-500"
-                                            ></i>
-                                            Traitez et gérez les candidatures
-                                            par concours
-                                        </p>
-                                    </div>
-                                </div>
+            <div class="header-section">
+                <Card class="header-card">
+                    <template #content>
+                        <div class="header-content">
+                            <div class="header-icon">
+                                <i class="pi pi-users"></i>
                             </div>
-                        </template>
-                    </Card>
-                </div>
+                            <div class="header-text">
+                                <h1>Gestion des candidatures</h1>
+                                <p>
+                                    <i class="pi pi-check-circle"></i>
+                                    Traitez et gérez les candidatures par
+                                    concours
+                                </p>
+                            </div>
+                        </div>
+                    </template>
+                </Card>
             </div>
 
             <!-- Sélection du concours -->
-            <div class="grid mb-4">
-                <div class="col-12">
-                    <Card class="shadow-sm">
-                        <template #content>
-                            <div
-                                class="flex flex-column md:flex-row align-items-center gap-4"
-                            >
-                                <div class="flex-1 w-full">
-                                    <label
-                                        class="block font-medium text-sm text-600 mb-2"
-                                    >
-                                        <i
-                                            class="pi pi-filter mr-2 text-emerald-500"
-                                        ></i>
-                                        Sélectionner un concours
-                                    </label>
-                                    <Select
-                                        v-model="selectedConcour"
-                                        :options="concoursList"
-                                        optionLabel="intitule"
-                                        optionValue="id"
-                                        placeholder="Choisissez un concours"
-                                        class="w-full"
-                                        filter
-                                    />
-                                </div>
+            <div class="selection-section">
+                <Card class="selection-card">
+                    <template #content>
+                        <div class="selection-content">
+                            <div class="selection-field">
+                                <label>
+                                    <i class="pi pi-filter"></i>
+                                    Sélectionner un concours
+                                </label>
+                                <Select
+                                    v-model="selectedConcour"
+                                    :options="concoursList"
+                                    optionLabel="intitule"
+                                    optionValue="id"
+                                    placeholder="Choisissez un concours"
+                                    class="w-full"
+                                    filter
+                                />
                             </div>
-                        </template>
-                    </Card>
-                </div>
+                        </div>
+                    </template>
+                </Card>
             </div>
 
-            <!-- Recherche globale (affichée seulement quand un concours est sélectionné) -->
-            <div v-if="selectedConcour && candidatures" class="grid mb-4">
-                <div class="col-12">
-                    <Card class="shadow-sm">
-                        <template #content>
-                            <div
-                                class="flex flex-column md:flex-row align-items-center gap-4"
-                            >
-                                <div class="flex-1 w-full">
-                                    <label
-                                        class="block font-medium text-sm text-600 mb-2"
+            <!-- Recherche globale -->
+            <div v-if="selectedConcour && candidatures" class="search-section">
+                <Card class="search-card">
+                    <template #content>
+                        <div class="search-content">
+                            <div class="search-field">
+                                <label>
+                                    <i class="pi pi-search"></i>
+                                    Rechercher un candidat
+                                </label>
+                                <div class="search-input-wrapper">
+                                    <IconField
+                                        iconPosition="left"
+                                        class="flex-1"
                                     >
-                                        <i
-                                            class="pi pi-search mr-2 text-emerald-500"
-                                        ></i>
-                                        Rechercher un candidat
-                                    </label>
-                                    <div class="flex gap-2">
-                                        <IconField
-                                            iconPosition="left"
-                                            class="flex-1"
-                                        >
-                                            <InputIcon class="pi pi-search" />
-                                            <InputText
-                                                v-model="searchQuery"
-                                                placeholder="Nom, prénom, n° dossier, email..."
-                                                class="w-full"
-                                            />
-                                        </IconField>
-                                        <Button
-                                            v-if="searchQuery"
-                                            icon="pi pi-times"
-                                            class="p-button-outlined p-button-secondary"
-                                            @click="resetSearch"
-                                            v-tooltip.top="
-                                                'Effacer la recherche'
-                                            "
+                                        <InputIcon class="pi pi-search" />
+                                        <InputText
+                                            v-model="searchQuery"
+                                            placeholder="Nom, prénom, n° dossier, email, NINA,..."
+                                            class="w-full"
                                         />
-                                    </div>
-                                    <small class="text-400 text-xs"
-                                        >La recherche s'effectue sur le nom,
-                                        prénom, n° de dossier, email et
-                                        motif</small
-                                    >
+                                    </IconField>
+                                    <Button
+                                        v-if="searchQuery"
+                                        icon="pi pi-times"
+                                        class="p-button-outlined p-button-secondary clear-btn"
+                                        @click="resetSearch"
+                                        v-tooltip.top="'Effacer la recherche'"
+                                    />
                                 </div>
+                                <small
+                                    >La recherche s'effectue sur le nom, prénom,
+                                    n° de dossier, email et motif</small
+                                >
                             </div>
-                        </template>
-                    </Card>
-                </div>
+                        </div>
+                    </template>
+                </Card>
             </div>
 
             <!-- Tableau des candidatures -->
-            <div v-if="selectedConcour && candidatures" class="grid">
-                <div class="col-12">
-                    <Card class="shadow-md">
-                        <template #title>
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-list text-emerald-500"></i>
-                                <span class="text-lg font-semibold"
-                                    >Liste des candidatures</span
-                                >
-                                <span class="text-sm text-600 ml-auto"
-                                    >{{ candidatures.total }} candidat(s)</span
-                                >
-                            </div>
-                        </template>
-                        <template #content>
-                            <DataTable
-                                :value="candidatures.data"
-                                :rowClass="rowClass"
-                                v-model:expandedRows="expandedRows"
-                                dataKey="id"
-                                class="p-datatable-sm"
-                                stripedRows
-                                showGridlines
-                                responsiveLayout="stack"
-                                :loading="!candidatures.data"
+            <div v-if="selectedConcour && candidatures" class="table-section">
+                <Card class="table-card">
+                    <template #title>
+                        <div class="table-title">
+                            <i class="pi pi-list"></i>
+                            <span>Liste des candidatures</span>
+                            <span class="total-count"
+                                >{{ candidatures.total }} candidat(s)</span
                             >
-                                <Column expander style="width: 3rem" />
+                        </div>
+                    </template>
+                    <template #content>
+                        <DataTable
+                            :value="candidatures.data"
+                            :rowClass="rowClass"
+                            v-model:expandedRows="expandedRows"
+                            dataKey="id"
+                            class="custom-datatable"
+                            stripedRows
+                            showGridlines
+                            responsiveLayout="stack"
+                            breakpoint="768px"
+                            :loading="!candidatures.data"
+                        >
+                            <Column expander style="width: 3rem" />
 
-                                <Column
-                                    field="num_dossier"
-                                    header="N° Dossier"
-                                    sortable
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="flex align-items-center gap-2"
-                                        >
-                                            <i
-                                                class="pi pi-qrcode text-emerald-500"
-                                            ></i>
-                                            <span class="font-medium">{{
-                                                slotProps.data.num_dossier
-                                            }}</span>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column
-                                    field="nom_complet"
-                                    header="Candidat"
-                                    sortable
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="flex align-items-center gap-2"
-                                        >
-                                            <Avatar
-                                                :label="
-                                                    slotProps.data.nom_complet?.charAt(
-                                                        0,
-                                                    ) || '?'
-                                                "
-                                                size="small"
-                                                shape="circle"
-                                                class="bg-emerald-500 text-white"
-                                            />
-                                            <span>{{
-                                                slotProps.data.nom_complet
-                                            }}</span>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column
-                                    field="created_at"
-                                    header="Date dépôt"
-                                    sortable
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="flex align-items-center gap-2"
-                                        >
-                                            <i
-                                                class="pi pi-calendar text-400"
-                                            ></i>
-                                            <span>{{
-                                                slotProps.data.created_at
-                                            }}</span>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column header="Statut">
-                                    <template #body="slotProps">
-                                        <Tag
-                                            :severity="
-                                                getSeverity(
-                                                    slotProps.data.resultat,
-                                                )
-                                            "
-                                            :value="
-                                                slotProps.data.resultat ||
-                                                'En attente'
-                                            "
-                                            rounded
-                                            :class="
-                                                getStatusBadgeClass(
-                                                    slotProps.data.resultat,
-                                                )
-                                            "
-                                            class="px-3 py-1"
-                                        />
-                                    </template>
-                                </Column>
-
-                                <Column header="Dossier" style="width: 6rem">
-                                    <template #body="slotProps">
-                                        <Button
-                                            icon="pi pi-paperclip"
-                                            class="p-button-rounded p-button-text p-button-sm"
-                                            :badge="
-                                                slotProps.data.fichiers
-                                                    ?.length || null
-                                            "
-                                            badgeClass="p-badge-info"
-                                            @click="
-                                                toggleFiles(
-                                                    $event,
-                                                    slotProps.data.fichiers,
-                                                )
-                                            "
-                                            v-tooltip.top="
-                                                'Voir les pièces jointes'
-                                            "
-                                        />
-                                    </template>
-                                </Column>
-
-                                <Column header="Actions" style="width: 12rem">
-                                    <template #body="slotProps">
-                                        <div class="flex gap-1">
-                                            <Button
-                                                icon="pi pi-check"
-                                                class="p-button-rounded p-button-text p-button-sm text-green-600 hover:text-green-700"
-                                                @click="
-                                                    confirmUpdate(
-                                                        slotProps.data.id,
-                                                        'Admis',
-                                                    )
-                                                "
-                                                v-tooltip.top="'Admettre'"
-                                            />
-                                            <Button
-                                                icon="pi pi-ban"
-                                                class="p-button-rounded p-button-text p-button-sm text-red-600 hover:text-red-700"
-                                                @click="
-                                                    confirmUpdate(
-                                                        slotProps.data.id,
-                                                        'Rejété',
-                                                    )
-                                                "
-                                                v-tooltip.top="'Rejeter'"
-                                            />
-                                            <Link
-                                                v-if="slotProps.data?.id"
-                                                :href="
-                                                    route('messagerie.index', {
-                                                        candidat_id:
-                                                            slotProps.data
-                                                                .profil_user_id,
-                                                        concour_id:
-                                                            selectedConcour,
-                                                    })
-                                                "
-                                            >
-                                                <Button
-                                                    icon="pi pi-envelope"
-                                                    class="p-button-rounded p-button-text p-button-sm text-blue-600 hover:text-blue-700"
-                                                    v-tooltip.top="
-                                                        'Envoyer un message'
-                                                    "
-                                                />
-                                            </Link>
-                                            <Link
-                                                v-if="slotProps.data.profil_id"
-                                                :href="
-                                                    route(
-                                                        'candidat-profil.show',
-                                                        {
-                                                            id: slotProps.data
-                                                                .profil_id,
-                                                        },
-                                                    )
-                                                "
-                                            >
-                                                <Button
-                                                    icon="pi pi-user"
-                                                    class="p-button-rounded p-button-text p-button-sm text-emerald-600 hover:text-emerald-700"
-                                                    v-tooltip.top="
-                                                        'Voir le profil'
-                                                    "
-                                                />
-                                            </Link>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <template #expansion="slotProps">
-                                    <div
-                                        class="p-4 bg-gray-50 dark:bg-gray-800"
-                                    >
-                                        <h5 class="font-semibold mb-3">
-                                            Informations complémentaires
-                                        </h5>
-                                        <div class="grid">
-                                            <div class="col-12 md:col-6">
-                                                <div class="field">
-                                                    <label
-                                                        class="text-xs text-600"
-                                                        >Motif /
-                                                        Remarques</label
-                                                    >
-                                                    <InputText
-                                                        v-model="
-                                                            slotProps.data.motif
-                                                        "
-                                                        @blur="
-                                                            updateMotif(
-                                                                slotProps.data
-                                                                    .id,
-                                                                slotProps.data
-                                                                    .motif,
-                                                            )
-                                                        "
-                                                        placeholder="Ajouter un motif..."
-                                                        class="w-full"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div class="col-12 md:col-6">
-                                                <div class="field">
-                                                    <label
-                                                        class="text-xs text-600"
-                                                        >Dernière
-                                                        modification</label
-                                                    >
-                                                    <InputText
-                                                        :value="
-                                                            slotProps.data
-                                                                .updated_at ||
-                                                            'Jamais'
-                                                        "
-                                                        disabled
-                                                        class="w-full"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
+                            <Column
+                                field="num_dossier"
+                                header="N° Dossier"
+                                sortable
+                            >
+                                <template #body="slotProps">
+                                    <div class="dossier-cell">
+                                        <i class="pi pi-qrcode"></i>
+                                        <span class="font-medium">{{
+                                            slotProps.data.num_dossier
+                                        }}</span>
                                     </div>
                                 </template>
-                            </DataTable>
+                            </Column>
 
-                            <!-- Pagination -->
-                            <div
-                                class="flex align-items-center justify-content-center mt-4 gap-1"
+                            <Column
+                                field="nom_complet"
+                                header="Candidat"
+                                sortable
                             >
-                                <Link
-                                    v-for="link in candidatures.links"
-                                    :key="link.label"
-                                    :href="link.url || '#'"
-                                    class="p-button p-button-sm no-underline"
-                                    :class="{
-                                        'p-button-primary': link.active,
-                                        'p-button-outlined p-button-secondary':
-                                            !link.active,
-                                        'opacity-50 pointer-events-none':
-                                            !link.url,
-                                    }"
-                                    v-html="link.label"
-                                />
-                            </div>
-                        </template>
-                    </Card>
-                </div>
+                                <template #body="slotProps">
+                                    <div class="candidat-cell">
+                                        <Avatar
+                                            :label="
+                                                slotProps.data.nom_complet?.charAt(
+                                                    0,
+                                                ) || '?'
+                                            "
+                                            size="small"
+                                            shape="circle"
+                                            class="candidat-avatar"
+                                        />
+                                        <span>{{
+                                            slotProps.data.nom_complet
+                                        }}</span>
+                                    </div>
+                                </template>
+                            </Column>
+
+                            <Column
+                                field="created_at"
+                                header="Date dépôt"
+                                sortable
+                            >
+                                <template #body="slotProps">
+                                    <div class="date-cell">
+                                        <i class="pi pi-calendar"></i>
+                                        <span>{{
+                                            formatDate(
+                                                slotProps.data.created_at,
+                                            )
+                                        }}</span>
+                                    </div>
+                                </template>
+                            </Column>
+
+                            <!-- Colonne Spécialité -->
+                            <Column
+                                v-if="candidatures.data[0]?.has_specialites"
+                                field="specialite"
+                                header="Spécialité"
+                                sortable
+                            >
+                                <template #body="slotProps">
+                                    <div class="specialite-cell">
+                                        <i class="pi pi-tags"></i>
+                                        <span>{{
+                                            slotProps.data.specialite ||
+                                            "Non spécifiée"
+                                        }}</span>
+                                    </div>
+                                </template>
+                            </Column>
+
+                            <Column header="Statut">
+                                <template #body="slotProps">
+                                    <Tag
+                                        :severity="
+                                            getSeverity(slotProps.data.resultat)
+                                        "
+                                        :value="
+                                            slotProps.data.resultat ||
+                                            'En attente'
+                                        "
+                                        rounded
+                                        :class="
+                                            getStatusBadgeClass(
+                                                slotProps.data.resultat,
+                                            )
+                                        "
+                                        class="status-tag"
+                                    />
+                                </template>
+                            </Column>
+
+                            <Column header="Dossier" style="width: 6rem">
+                                <template #body="slotProps">
+                                    <Button
+                                        icon="pi pi-paperclip"
+                                        class="p-button-rounded p-button-text p-button-sm"
+                                        :badge="
+                                            slotProps.data.fichiers?.length ||
+                                            null
+                                        "
+                                        badgeClass="p-badge-info"
+                                        @click="
+                                            toggleFiles(
+                                                $event,
+                                                slotProps.data.fichiers,
+                                            )
+                                        "
+                                        v-tooltip.top="
+                                            'Voir les pièces jointes'
+                                        "
+                                    />
+                                </template>
+                            </Column>
+
+                            <Column header="Actions" style="width: 14rem">
+                                <template #body="slotProps">
+                                    <div class="actions-cell">
+                                        <Button
+                                            icon="pi pi-check"
+                                            class="p-button-rounded p-button-text p-button-sm"
+                                            @click="
+                                                confirmUpdate(
+                                                    slotProps.data.id,
+                                                    'Admis',
+                                                )
+                                            "
+                                            v-tooltip.top="'Admettre'"
+                                        />
+                                        <Button
+                                            icon="pi pi-ban"
+                                            class="p-button-rounded p-button-text p-button-sm text-red-600"
+                                            @click="
+                                                confirmUpdate(
+                                                    slotProps.data.id,
+                                                    'Rejété',
+                                                )
+                                            "
+                                            v-tooltip.top="'Rejeter'"
+                                        />
+                                        <Link
+                                            v-if="slotProps.data?.id"
+                                            :href="
+                                                route('messagerie.index', {
+                                                    candidat_id:
+                                                        slotProps.data
+                                                            .profil_user_id,
+                                                    concour_id: selectedConcour,
+                                                })
+                                            "
+                                        >
+                                            <Button
+                                                icon="pi pi-envelope"
+                                                class="p-button-rounded p-button-text p-button-sm text-blue-600"
+                                                v-tooltip.top="
+                                                    'Envoyer un message'
+                                                "
+                                            />
+                                        </Link>
+                                        <Link
+                                            v-if="slotProps.data.profil_id"
+                                            :href="
+                                                route('candidat-profil.show', {
+                                                    profil: slotProps.data
+                                                        .profil_id,
+                                                })
+                                            "
+                                        >
+                                            <Button
+                                                icon="pi pi-user"
+                                                class="p-button-rounded p-button-text p-button-sm text-gray-700"
+                                                v-tooltip.top="'Voir le profil'"
+                                            />
+                                        </Link>
+                                    </div>
+                                </template>
+                            </Column>
+
+                            <template #expansion="slotProps">
+                                <div class="expansion-content">
+                                    <h5>Informations complémentaires</h5>
+                                    <div class="expansion-grid">
+                                        <div class="expansion-field">
+                                            <label>Motif / Remarques</label>
+                                            <InputText
+                                                v-model="slotProps.data.motif"
+                                                @blur="
+                                                    updateMotif(
+                                                        slotProps.data.id,
+                                                        slotProps.data.motif,
+                                                    )
+                                                "
+                                                placeholder="Ajouter un motif..."
+                                                class="w-full"
+                                            />
+                                        </div>
+                                        <div class="expansion-field">
+                                            <label>Dernière modification</label>
+                                            <InputText
+                                                :value="
+                                                    formatDate(
+                                                        slotProps.data
+                                                            .updated_at,
+                                                    ) || 'Jamais'
+                                                "
+                                                disabled
+                                                class="w-full"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </DataTable>
+
+                        <!-- Pagination -->
+                        <div class="pagination-wrapper">
+                            <Link
+                                v-for="link in candidatures.links"
+                                :key="link.label"
+                                :href="link.url || '#'"
+                                class="pagination-link"
+                                :class="{
+                                    active: link.active,
+                                    disabled: !link.url,
+                                }"
+                                v-html="link.label"
+                            />
+                        </div>
+                    </template>
+                </Card>
             </div>
 
             <!-- État quand aucun concours sélectionné -->
-            <div v-else-if="!selectedConcour" class="grid">
-                <div class="col-12">
-                    <Card class="shadow-sm">
-                        <template #content>
-                            <div class="text-center py-8">
-                                <div
-                                    class="w-20 h-20 bg-50 border-circle flex align-items-center justify-content-center mb-4 mx-auto"
-                                >
-                                    <i
-                                        class="pi pi-search-minus text-4xl text-400"
-                                    ></i>
-                                </div>
-                                <h3 class="text-xl font-semibold text-900 mb-2">
-                                    Aucun concours sélectionné
-                                </h3>
-                                <p class="text-500">
-                                    Veuillez choisir un concours pour voir les
-                                    candidatures
-                                </p>
+            <div v-else-if="!selectedConcour" class="empty-section">
+                <Card class="empty-card">
+                    <template #content>
+                        <div class="empty-content">
+                            <div class="empty-icon">
+                                <i class="pi pi-search-minus"></i>
                             </div>
-                        </template>
-                    </Card>
-                </div>
+                            <h3>Aucun concours sélectionné</h3>
+                            <p>
+                                Veuillez choisir un concours pour voir les
+                                candidatures
+                            </p>
+                        </div>
+                    </template>
+                </Card>
             </div>
 
             <!-- Overlay Panel pour les fichiers -->
             <OverlayPanel ref="op">
-                <div class="p-3" style="min-width: 250px">
-                    <h5 class="font-semibold mb-3">Pièces jointes</h5>
-                    <div
-                        v-if="selectedFiles.length > 0"
-                        class="flex flex-column gap-2"
-                    >
+                <div class="files-panel">
+                    <h5>Pièces jointes</h5>
+                    <div v-if="selectedFiles.length > 0" class="files-list">
                         <div
                             v-for="file in selectedFiles"
                             :key="file.url"
-                            class="flex align-items-center gap-2 p-2 hover:surface-hover border-round transition-colors"
+                            class="file-item"
                         >
-                            <i class="pi pi-file-pdf text-red-500"></i>
-                            <a
-                                :href="'/storage/' + file.url"
-                                target="_blank"
-                                class="flex-1 text-sm text-700 no-underline hover:text-emerald-600"
-                            >
+                            <i class="pi pi-file-pdf"></i>
+                            <a :href="'/storage/' + file.url" target="_blank">
                                 {{ file.nom }}
                             </a>
-                            <i class="pi pi-external-link text-400"></i>
+                            <i class="pi pi-external-link"></i>
                         </div>
                     </div>
-                    <div v-else class="text-center py-3 text-400">
-                        <i class="pi pi-file-excel text-2xl mb-2"></i>
-                        <p class="text-sm">Aucune pièce jointe</p>
+                    <div v-else class="empty-files">
+                        <i class="pi pi-file-excel"></i>
+                        <p>Aucune pièce jointe</p>
                     </div>
                 </div>
             </OverlayPanel>
@@ -644,6 +578,403 @@ const rowClass = (data) => {
 </template>
 
 <style scoped>
+/* Container principal */
+.page-container {
+    padding: 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .page-container {
+        padding: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .page-container {
+        padding: 2rem;
+    }
+}
+
+/* Cartes */
+.header-card,
+.selection-card,
+.search-card,
+.table-card,
+.empty-card {
+    border-radius: 1rem;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .header-card,
+    .selection-card,
+    .search-card,
+    .table-card,
+    .empty-card {
+        margin-bottom: 1rem;
+        border-radius: 0.75rem;
+    }
+}
+
+/* En-tête */
+.header-card {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.header-card :deep(.p-card-content) {
+    padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .header-card :deep(.p-card-content) {
+        padding: 1rem;
+    }
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: white;
+}
+
+.header-icon {
+    width: 4rem;
+    height: 4rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-icon i {
+    font-size: 2rem;
+}
+
+.header-text h1 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0 0 0.25rem 0;
+}
+
+.header-text p {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+    .header-icon {
+        width: 3rem;
+        height: 3rem;
+    }
+    .header-icon i {
+        font-size: 1.5rem;
+    }
+    .header-text h1 {
+        font-size: 1.25rem;
+    }
+}
+
+/* Sélection */
+.selection-content,
+.search-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.selection-field label,
+.search-field label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    color: #4b5563;
+}
+
+.selection-field label i,
+.search-field label i {
+    margin-right: 0.5rem;
+    color: #10b981;
+}
+
+.search-input-wrapper {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.clear-btn {
+    flex-shrink: 0;
+}
+
+.search-field small {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+/* Tableau */
+.table-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.table-title i {
+    color: #10b981;
+    font-size: 1.25rem;
+}
+
+.table-title span {
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.total-count {
+    margin-left: auto;
+    font-size: 0.875rem;
+    font-weight: normal;
+    color: #6b7280;
+    background: #f3f4f6;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2rem;
+}
+
+/* Cellules du tableau */
+.dossier-cell,
+.candidat-cell,
+.date-cell,
+.specialite-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dossier-cell i,
+.date-cell i,
+.specialite-cell i {
+    color: #10b981;
+    font-size: 0.875rem;
+}
+
+.candidat-avatar {
+    background-color: #10b981 !important;
+    color: white !important;
+}
+
+/* Statut */
+.status-tag {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+/* Boutons d'action */
+.actions-cell {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.actions-cell .p-button-text {
+    width: 2rem !important;
+    height: 2rem !important;
+    border-radius: 0.5rem !important;
+}
+
+.actions-cell .p-button-text:hover {
+    background-color: #f3f4f6 !important;
+}
+
+/* Expansion */
+.expansion-content {
+    padding: 1rem;
+    background-color: #f9fafb;
+}
+
+.expansion-content h5 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.expansion-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .expansion-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.expansion-field label {
+    display: block;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.25rem;
+}
+
+/* Pagination */
+.pagination-wrapper {
+    display: flex;
+    justify-content: center;
+    gap: 0.25rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.pagination-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 0.5rem;
+    border-radius: 0.5rem;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pagination-link:hover {
+    background-color: #f3f4f6;
+    border-color: #10b981;
+}
+
+.pagination-link.active {
+    background-color: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.pagination-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* État vide */
+.empty-content {
+    text-align: center;
+    padding: 3rem;
+}
+
+.empty-icon {
+    width: 5rem;
+    height: 5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.empty-icon i {
+    font-size: 2rem;
+    color: #9ca3af;
+}
+
+.empty-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.empty-content p {
+    color: #6b7280;
+}
+
+/* Panel fichiers */
+.files-panel {
+    padding: 0.5rem;
+    min-width: 250px;
+    max-width: 350px;
+}
+
+.files-panel h5 {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.file-item:hover {
+    background-color: #f3f4f6;
+}
+
+.file-item i:first-child {
+    color: #ef4444;
+    font-size: 1rem;
+}
+
+.file-item a {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #374151;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.file-item a:hover {
+    color: #10b981;
+}
+
+.file-item i:last-child {
+    color: #9ca3af;
+    font-size: 0.75rem;
+}
+
+.empty-files {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.empty-files i {
+    font-size: 2rem;
+    color: #d1d5db;
+    margin-bottom: 0.5rem;
+}
+
+.empty-files p {
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+/* Lignes spéciales */
 :deep(.row-admitted) {
     background-color: rgba(16, 185, 129, 0.05) !important;
 }
@@ -652,47 +983,36 @@ const rowClass = (data) => {
     background-color: rgba(239, 68, 68, 0.05) !important;
 }
 
-:deep(.row-admitted:hover),
-:deep(.row-rejected:hover) {
-    filter: brightness(0.98);
-}
-
-:deep(.p-datatable-stack .p-column-title) {
-    font-weight: 600;
-    color: var(--surface-700);
-}
-
-/* Animation d'entrée */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
+/* Responsive Datatable */
+@media (max-width: 768px) {
+    :deep(.p-datatable .p-datatable-tbody > tr > td) {
+        padding: 0.75rem;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    :deep(.p-datatable .p-datatable-thead > tr > th) {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .actions-cell {
+        justify-content: flex-start;
+    }
+
+    .total-count {
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+
+    .table-title {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 
-.p-card {
-    animation: fadeInUp 0.3s ease-out;
-}
-
-/* Amélioration du focus */
+/* Focus */
 :deep(.p-inputtext:focus),
 :deep(.p-select:focus) {
     border-color: #10b981 !important;
     box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
-}
-
-/* Pagination personnalisée */
-:deep(.p-paginator) {
-    padding: 1rem 0;
-}
-
-:deep(.p-paginator .p-paginator-page.p-highlight) {
-    background: #10b981;
-    border-color: #10b981;
-    color: white;
 }
 </style>

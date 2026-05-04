@@ -34,8 +34,23 @@ const stats = computed(() => {
     return { total, admis, rejetes, traitement };
 });
 
-const getResultatSeverity = (res) => {
-    switch (res) {
+// ⭐ Fonction pour obtenir le libellé personnalisé
+const getResultatLabel = (resultat) => {
+    switch (resultat) {
+        case "Admis":
+            return "Dossier accepté";
+        case "Rejeté":
+            return "Dossier rejeté";
+        case "Traitement":
+            return "Dossier en traitement";
+        default:
+            return resultat || "Inconnu";
+    }
+};
+
+// ⭐ Fonction pour obtenir la couleur (severité PrimeVue)
+const getResultatSeverity = (resultat) => {
+    switch (resultat) {
         case "Admis":
             return "success";
         case "Rejeté":
@@ -47,8 +62,9 @@ const getResultatSeverity = (res) => {
     }
 };
 
-const getResultatIcon = (res) => {
-    switch (res) {
+// ⭐ Fonction pour obtenir l'icône
+const getResultatIcon = (resultat) => {
+    switch (resultat) {
         case "Admis":
             return "pi-check-circle";
         case "Rejeté":
@@ -197,10 +213,15 @@ const printReceipt = (id) => {
                             </template>
                         </Column>
 
+                        <!-- ⭐ Colonne Résultat avec libellé personnalisé -->
                         <Column field="resultat" header="RÉSULTAT">
                             <template #body="slotProps">
                                 <Tag
-                                    :value="slotProps.data.resultat"
+                                    :value="
+                                        getResultatLabel(
+                                            slotProps.data.resultat,
+                                        )
+                                    "
                                     :severity="
                                         getResultatSeverity(
                                             slotProps.data.resultat,
@@ -216,7 +237,11 @@ const printReceipt = (id) => {
                                         "
                                         class="mr-1"
                                     ></i>
-                                    {{ slotProps.data.resultat }}
+                                    {{
+                                        getResultatLabel(
+                                            slotProps.data.resultat,
+                                        )
+                                    }}
                                 </Tag>
                             </template>
                         </Column>
@@ -275,7 +300,9 @@ const printReceipt = (id) => {
                             <i
                                 :class="getResultatIcon(candidature.resultat)"
                             ></i>
-                            <span>{{ candidature.resultat }}</span>
+                            <span>{{
+                                getResultatLabel(candidature.resultat)
+                            }}</span>
                         </div>
                         <div class="card-content">
                             <div class="card-row">
@@ -585,6 +612,25 @@ const printReceipt = (id) => {
     font-size: 0.7rem;
     font-weight: 600;
     border-radius: 20px;
+}
+
+/* ⭐ Style pour le tag Rejeté - forcé en rouge */
+.status-tag[severity="danger"] {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+    border: 1px solid #fecaca !important;
+}
+
+.status-tag[severity="success"] {
+    background-color: #dcfce7 !important;
+    color: #16a34a !important;
+    border: 1px solid #bbf7d0 !important;
+}
+
+.status-tag[severity="info"] {
+    background-color: #dbeafe !important;
+    color: #2563eb !important;
+    border: 1px solid #bfdbfe !important;
 }
 
 .motif-text {

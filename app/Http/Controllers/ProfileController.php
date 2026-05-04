@@ -25,7 +25,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Update the user's profile information.
+     * Update the user's email.
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
@@ -37,7 +37,13 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return Redirect::route('profile.edit');
+        if ($request->user() instanceof MustVerifyEmail && $request->user()->wasChanged('email')) {
+            $request->user()->sendEmailVerificationNotification();
+
+            return Redirect::route('profile.edit')->with('status', 'Un nouveau lien de vérification a été envoyé à votre nouvelle adresse email.');
+        }
+
+        return Redirect::route('profile.edit')->with('status', 'Email mis à jour avec succès.');
     }
 
     /**

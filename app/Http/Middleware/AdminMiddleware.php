@@ -1,4 +1,5 @@
 <?php
+// app/Http/Middleware/AdminMiddleware.php
 
 namespace App\Http\Middleware;
 
@@ -12,21 +13,20 @@ class AdminMiddleware
 {
     /**
      * Handle an incoming request.
+     * ⭐ Ce middleware est accessible à : admin, superadmin, gerant
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Correction P1013 : Utilisation de la Façade Auth
         if (!Auth::check()) {
-            return redirect('/login'); 
+            return redirect('/login');
         }
 
         /** @var User $user */
         $user = Auth::user();
 
-        // LOGIQUE CORRIGÉE : Si l'utilisateur n'a AUCUN des deux rôles, on bloque.
-        // On utilise hasAnyRole (méthode Spatie) qui est beaucoup plus propre.
-        if (!$user->hasAnyRole(['admin', 'superadmin'])) {
-            return redirect('/')->with('error', 'Accès réservé aux administrateurs.');
+        // Vérifier si l'utilisateur a l'un des rôles : admin, superadmin, ou gerant
+        if (!$user->hasAnyRole(['admin', 'superadmin', 'gerant'])) {
+            return redirect('/')->with('error', 'Accès réservé aux administrateurs et gérants.');
         }
 
         return $next($request);

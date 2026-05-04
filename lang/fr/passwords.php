@@ -1,0 +1,17 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Password Reset Language Lines
+    |--------------------------------------------------------------------------
+    */
+
+    'reset' => 'Votre mot de passe a été réinitialisé !',
+    'sent' => 'Nous avons envoyé le lien de réinitialisation du mot de passe par email !',
+    'throttled' => 'Veuillez patienter avant de réessayer.',
+    'token' => 'Ce jeton de réinitialisation de mot de passe est invalide.',
+    'user' => 'Aucun utilisateur trouvé avec cette adresse email.',
+
+];

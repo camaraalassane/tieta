@@ -116,15 +116,23 @@ onMounted(() => {
                         Messages
                     </h5>
                     <Select
-                        v-model="form.concour_id"
-                        :options="mesConcours"
-                        optionLabel="intitule"
-                        optionValue="id"
-                        placeholder="Nouveau message sur..."
-                        @change="(e) => startNewDiscussion(e.value)"
-                        class="w-full border-round-pill"
-                        filter
-                    />
+                 <Select
+    v-model="form.concour_id"
+    :options="mesConcours"
+    optionLabel="intitule"
+    optionValue="id"
+    placeholder="Nouveau message sur..."
+    @change="(e) => startNewDiscussion(e.value)"
+    class="w-full border-round-pill"
+    filter
+>
+    <template #empty>
+        <div class="flex align-items-center justify-content-center p-3 text-surface-500">
+            <i class="pi pi-inbox mr-2"></i>
+            <span>Pas encore de conversation</span>
+        </div>
+    </template>
+</Select>
                 </div>
 
                 <div class="contacts-list">

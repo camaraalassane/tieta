@@ -1,6 +1,6 @@
 <script setup>
 import { useForm, Head } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, onUnmounted, onMounted } from "vue";
 import AppLayout from "@/sakai/layout/AppLayout.vue";
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
@@ -28,6 +28,8 @@ const diplomesList = [
     "Doctorat",
 ];
 const toast = useToast();
+const lastSaveTime = ref(null);
+
 const form = useForm({
     nom: props.user?.name || "",
     email: props.user?.email || "",
@@ -37,10 +39,26 @@ const form = useForm({
     date_naissance: props.user?.profil?.date_naissance || "",
     lieu_naissance: props.user?.profil?.lieu_naissance || "",
     region: props.user?.profil?.region || "",
+    nina: props.user?.profil?.nina || "",
+    prenom_pere: props.user?.profil?.prenom_pere || "",
+    prenom_mere: props.user?.profil?.prenom_mere || "",
+    nom_mere: props.user?.profil?.nom_mere || "",
     photo_identite: null,
     carte_identite: null,
     permis: null,
     ...Object.fromEntries(diplomesList.map((d) => [d, null])),
+});
+
+// Gestionnaire pour Ctrl+S ou Cmd+S
+const handleKeyboardSave = (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+        event.preventDefault();
+        submit();
+    }
+};
+
+onMounted(() => {
+    document.addEventListener("keydown", handleKeyboardSave);
 });
 
 const photoPreviewUrl = ref(
@@ -50,11 +68,59 @@ const photoPreviewUrl = ref(
 );
 const photoInput = ref(null);
 
+// Validation des fichiers
+const validateFile = (file, field) => {
+    const maxSize = field === "photo_identite" ? 2 * 1024 * 1024 : 1024 * 1024;
+    const maxSizeText = field === "photo_identite" ? "2 Mo" : "1 Mo";
+
+    if (file.size > maxSize) {
+        toast.add({
+            severity: "error",
+            summary: "Fichier trop volumineux",
+            detail: `Le fichier ne doit pas dépasser ${maxSizeText}`,
+            life: 3000,
+        });
+        return false;
+    }
+
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+
+    if (field === "photo_identite") {
+        if (!["jpg", "jpeg", "png"].includes(fileExtension)) {
+            toast.add({
+                severity: "error",
+                summary: "Format non supporté",
+                detail: "La photo d'identité doit être au format JPG ou PNG",
+                life: 3000,
+            });
+            return false;
+        }
+    } else {
+        if (fileExtension !== "pdf") {
+            toast.add({
+                severity: "error",
+                summary: "Format non supporté",
+                detail: "Le document doit être au format PDF",
+                life: 3000,
+            });
+            return false;
+        }
+    }
+    return true;
+};
+
+// ⭐ Gestionnaire de fichier - assigne le fichier et déclenche la soumission
 const handleFileUpload = (event, field) => {
     if (!props.isOwner || props.hasActiveCandidature) return;
     const file = event.target.files[0];
     if (file) {
+        if (!validateFile(file, field)) {
+            event.target.value = "";
+            return;
+        }
+
         form[field] = file;
+
         if (field === "photo_identite") {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -62,12 +128,15 @@ const handleFileUpload = (event, field) => {
             };
             reader.readAsDataURL(file);
         }
+
+        // ⭐ Déclencher la soumission automatique après avoir assigné le fichier
+        submit();
     }
 };
 
+// ⭐ Soumission unique pour TOUS les champs (textes + fichiers)
 const submit = () => {
     if (!props.isOwner) {
-        console.error("Action interdite : vous n'êtes pas le propriétaire.");
         return;
     }
 
@@ -85,22 +154,33 @@ const submit = () => {
         preserveScroll: true,
         forceFormData: true,
         onSuccess: () => {
+            lastSaveTime.value = new Date();
             toast.add({
                 severity: "success",
                 summary: "Succès",
-                detail: "Votre profil a été mis à jour avec succès",
-                life: 3000,
+                detail: "Profil mis à jour",
+                life: 2000,
             });
         },
-        onError: () => {
+        onError: (errors) => {
+            console.error("Submit error:", errors);
             toast.add({
                 severity: "error",
                 summary: "Erreur",
-                detail: "Une erreur est survenue lors de la mise à jour",
+                detail: "Erreur lors de la mise à jour",
                 life: 3000,
             });
         },
     });
+};
+
+onUnmounted(() => {
+    document.removeEventListener("keydown", handleKeyboardSave);
+});
+
+const formattedLastSaveTime = () => {
+    if (!lastSaveTime.value) return "";
+    return `Dernière sauvegarde : ${lastSaveTime.value.toLocaleTimeString()}`;
 };
 </script>
 
@@ -110,33 +190,21 @@ const submit = () => {
         <Head :title="isOwner ? 'Compléter mon profil' : 'Profil candidat'" />
 
         <div class="card p-2 md:p-2 border-0 shadow-none bg-transparent">
-            <!-- Bandeau d'alerte orange - s'affiche SEULEMENT pour le candidat (isOwner true) -->
             <div v-if="isOwner && showBanner" class="alert-banner mb-4">
                 <div class="alert-banner-inner">
                     <i class="pi pi-info-circle alert-icon"></i>
                     <div class="alert-marquee">
                         <div class="alert-marquee-content">
                             ⚠️ Tant qu'une candidature est en traitement, vous
-                            ne pouvez plus modifier votre profil. Cependant,
-                            complétez correctement votre profil avant de
-                            postuler à un concours. ⚠️
-                        </div>
-                        <div class="alert-marquee-content" aria-hidden="true">
-                            ⚠️ Tant qu'une candidature est en traitement, vous
-                            ne pouvez plus modifier votre profil. Cependant,
-                            complétez correctement votre profil avant de
-                            postuler à un concours. ⚠️
+                            ne pouvez plus modifier votre profil. Formats :
+                            Photo (JPG/PNG max 500Ko) | Documents (PDF max 1Mo)
+                            ⚠️
                         </div>
                     </div>
                 </div>
             </div>
 
-            <form
-                @submit.prevent="
-                    isOwner && !hasActiveCandidature ? submit() : null
-                "
-                class="sakai-card p-6 md:p-10"
-            >
+            <form @submit.prevent="submit" class="sakai-card p-6 md:p-10">
                 <div
                     class="flex justify-between items-center mb-8 flex-wrap gap-4"
                 >
@@ -161,10 +229,10 @@ const submit = () => {
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <!-- Section Gauche : Informations de base -->
+                    <!-- Section Gauche -->
                     <div class="flex flex-col gap-6">
                         <h2
-                            class="text-xl font-semibold border-b border-emerald-500/20 pb-2 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
+                            class="text-xl font-semibold border-b border-emerald-500/20 pb-2 text-emerald-600 flex items-center gap-2"
                         >
                             <i class="pi pi-user"></i> Informations de base
                         </h2>
@@ -174,7 +242,7 @@ const submit = () => {
                         >
                             <div class="relative group">
                                 <div
-                                    class="passport-photo bg-surface-100 dark:bg-surface-800 border-2 border-dashed border-emerald-500/30 rounded-xl flex items-center justify-center overflow-hidden transition-all"
+                                    class="passport-photo bg-surface-100 dark:bg-surface-800 border-2 border-dashed border-emerald-500/30 rounded-xl flex items-center justify-center overflow-hidden"
                                     :class="{
                                         'opacity-60': hasActiveCandidature,
                                     }"
@@ -191,10 +259,17 @@ const submit = () => {
                                         style="font-size: 2.5rem"
                                     ></i>
                                 </div>
+                                <div
+                                    v-if="form.processing"
+                                    class="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl"
+                                >
+                                    <i
+                                        class="pi pi-spin pi-spinner text-white text-2xl"
+                                    ></i>
+                                </div>
                             </div>
                             <div class="flex flex-col gap-2">
-                                <span
-                                    class="text-sm font-medium text-surface-700 dark:text-surface-300"
+                                <span class="text-sm font-medium"
                                     >Photo d'identité</span
                                 >
                                 <input
@@ -208,7 +283,7 @@ const submit = () => {
                                     "
                                     ref="photoInput"
                                     class="hidden"
-                                    accept="image/*"
+                                    accept="image/jpeg,image/png,image/jpg"
                                 />
                                 <Button
                                     v-if="isOwner && !hasActiveCandidature"
@@ -216,9 +291,9 @@ const submit = () => {
                                     icon="pi pi-refresh"
                                     label="Changer la photo"
                                     class="p-button-outlined p-button-sm"
+                                    :disabled="form.processing"
                                     @click="photoInput.click()"
                                 />
-
                                 <Tag
                                     v-if="!isOwner"
                                     severity="secondary"
@@ -226,65 +301,55 @@ const submit = () => {
                                     class="w-max"
                                 />
                                 <small class="text-surface-500"
-                                    >Format Passeport (Max 2Mo)</small
+                                    >JPG/PNG uniquement (Max 500Ko)</small
                                 >
                             </div>
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <label for="nom" class="font-semibold text-sm"
-                                >Nom</label
-                            >
+                            <label class="font-semibold text-sm">Nom</label>
                             <InputText
-                                id="nom"
                                 v-model="form.nom"
                                 :disabled="!isOwner || hasActiveCandidature"
                                 fluid
                             />
                         </div>
+
                         <div class="flex flex-col gap-2">
-                            <label for="prenom" class="font-semibold text-sm"
-                                >Prénom</label
-                            >
+                            <label class="font-semibold text-sm">Prénom</label>
                             <InputText
-                                id="prenom"
                                 v-model="form.prenom"
                                 :disabled="!isOwner || hasActiveCandidature"
                                 fluid
                             />
                         </div>
+
                         <div class="flex flex-col gap-2">
-                            <label for="sexe" class="font-semibold text-sm"
-                                >Sexe</label
-                            >
+                            <label class="font-semibold text-sm">Sexe</label>
                             <Select
-                                id="sexe"
                                 v-model="form.sexe"
                                 :options="optionsSexe"
-                                placeholder="Sélectionnez le sexe"
+                                placeholder="Sélectionnez"
                                 :disabled="!isOwner || hasActiveCandidature"
                                 fluid
                             />
                         </div>
+
                         <div class="flex flex-col gap-2">
-                            <label for="email" class="font-semibold text-sm"
-                                >Email</label
-                            >
+                            <label class="font-semibold text-sm">Email</label>
                             <InputText
-                                id="email"
                                 v-model="form.email"
                                 type="email"
-                                class="opacity-60"
                                 disabled
                                 fluid
                             />
                         </div>
+
                         <div class="flex flex-col gap-2">
-                            <label for="telephone" class="font-semibold text-sm"
+                            <label class="font-semibold text-sm"
                                 >Téléphone</label
                             >
                             <InputText
-                                id="telephone"
                                 v-model="form.telephone"
                                 :disabled="!isOwner || hasActiveCandidature"
                                 placeholder="+223..."
@@ -295,13 +360,10 @@ const submit = () => {
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="flex flex-col gap-2">
-                                <label
-                                    for="date_naissance"
-                                    class="font-semibold text-sm"
-                                    >Date de naissance</label
+                                <label class="font-semibold text-sm"
+                                    >Date naissance</label
                                 >
                                 <InputText
-                                    id="date_naissance"
                                     v-model="form.date_naissance"
                                     type="date"
                                     :disabled="!isOwner || hasActiveCandidature"
@@ -309,13 +371,10 @@ const submit = () => {
                                 />
                             </div>
                             <div class="flex flex-col gap-2">
-                                <label
-                                    for="lieu_naissance"
-                                    class="font-semibold text-sm"
-                                    >Lieu de naissance</label
+                                <label class="font-semibold text-sm"
+                                    >Lieu naissance</label
                                 >
                                 <InputText
-                                    id="lieu_naissance"
                                     v-model="form.lieu_naissance"
                                     :disabled="!isOwner || hasActiveCandidature"
                                     placeholder="Ex: Bamako"
@@ -325,25 +384,69 @@ const submit = () => {
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <label for="region" class="font-semibold text-sm"
-                                >Région</label
-                            >
+                            <label class="font-semibold text-sm">Région</label>
                             <InputText
-                                id="region"
                                 v-model="form.region"
                                 :disabled="!isOwner || hasActiveCandidature"
                                 placeholder="Votre région"
                                 fluid
                             />
                         </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label class="font-semibold text-sm">NINA</label>
+                            <InputText
+                                v-model="form.nina"
+                                :disabled="!isOwner || hasActiveCandidature"
+                                placeholder="Numéro NINA"
+                                fluid
+                            />
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="flex flex-col gap-2">
+                                <label class="font-semibold text-sm"
+                                    >Prénom du père</label
+                                >
+                                <InputText
+                                    v-model="form.prenom_pere"
+                                    :disabled="!isOwner || hasActiveCandidature"
+                                    placeholder="Prénom du père"
+                                    fluid
+                                />
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="font-semibold text-sm"
+                                    >Prénom de la mère</label
+                                >
+                                <InputText
+                                    v-model="form.prenom_mere"
+                                    :disabled="!isOwner || hasActiveCandidature"
+                                    placeholder="Prénom de la mère"
+                                    fluid
+                                />
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label class="font-semibold text-sm"
+                                >Nom de la mère</label
+                            >
+                            <InputText
+                                v-model="form.nom_mere"
+                                :disabled="!isOwner || hasActiveCandidature"
+                                placeholder="Nom de jeune fille de la mère"
+                                fluid
+                            />
+                        </div>
                     </div>
 
-                    <!-- Section Droite : Documents et Diplômes -->
+                    <!-- Section Droite -->
                     <div class="flex flex-col gap-6">
                         <h2
-                            class="text-xl font-semibold border-b border-emerald-500/20 pb-2 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
+                            class="text-xl font-semibold border-b border-emerald-500/20 pb-2 text-emerald-600 flex items-center gap-2"
                         >
-                            <i class="pi pi-file"></i> Documents et Diplômes
+                            <i class="pi pi-file"></i> Documents officiels
                         </h2>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -359,7 +462,7 @@ const submit = () => {
                                             props.user.profil.carte_identite
                                         "
                                         target="_blank"
-                                        class="text-emerald-600 text-xs hover:underline flex items-center gap-1"
+                                        class="text-emerald-600 text-xs hover:underline"
                                     >
                                         <i
                                             :class="
@@ -369,11 +472,7 @@ const submit = () => {
                                             "
                                             class="text-[10px]"
                                         ></i>
-                                        {{
-                                            !isOwner
-                                                ? "Voir actuel"
-                                                : "Télécharger"
-                                        }}
+                                        {{ !isOwner ? "Voir" : "Télécharger" }}
                                     </a>
                                 </div>
                                 <input
@@ -386,13 +485,14 @@ const submit = () => {
                                         )
                                     "
                                     class="custom-file-input"
-                                    accept=".pdf,image/*"
+                                    accept=".pdf"
+                                    :disabled="form.processing"
                                 />
                                 <div
                                     v-else
-                                    class="p-2 border-round surface-100 text-xs text-500 text-center border-1 border-300"
+                                    class="p-2 border-round surface-100 text-xs text-500 text-center border"
                                 >
-                                    Document archivé
+                                    PDF max 1Mo
                                 </div>
                             </div>
 
@@ -408,7 +508,7 @@ const submit = () => {
                                             props.user.profil.permis
                                         "
                                         target="_blank"
-                                        class="text-emerald-600 text-xs hover:underline flex items-center gap-1"
+                                        class="text-emerald-600 text-xs hover:underline"
                                     >
                                         <i
                                             :class="
@@ -418,11 +518,7 @@ const submit = () => {
                                             "
                                             class="text-[10px]"
                                         ></i>
-                                        {{
-                                            !isOwner
-                                                ? "Voir actuel"
-                                                : "Télécharger"
-                                        }}
+                                        {{ !isOwner ? "Voir" : "Télécharger" }}
                                     </a>
                                 </div>
                                 <input
@@ -430,40 +526,37 @@ const submit = () => {
                                     type="file"
                                     @change="handleFileUpload($event, 'permis')"
                                     class="custom-file-input"
-                                    accept=".pdf,image/*"
+                                    accept=".pdf"
+                                    :disabled="form.processing"
                                 />
                                 <div
                                     v-else
-                                    class="p-2 border-round surface-100 text-xs text-500 text-center border-1 border-300"
+                                    class="p-2 border-round surface-100 text-xs text-500 text-center border"
                                 >
-                                    Document archivé
+                                    PDF max 1Mo
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Liste des Diplômes -->
                         <div
-                            class="mt-4 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800"
+                            class="mt-4 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100"
                         >
                             <h3
-                                class="font-bold text-emerald-700 dark:text-emerald-300 mb-4 uppercase text-xs tracking-widest flex items-center gap-2"
+                                class="font-bold text-emerald-700 mb-4 uppercase text-xs"
                             >
-                                <i class="pi pi-upload"></i> Justificatifs des
-                                diplômes
+                                Justificatifs des diplômes (PDF max 1Mo)
                             </h3>
-
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div
                                     v-for="dip in diplomesList"
                                     :key="dip"
-                                    class="flex flex-col gap-1 p-2 bg-white dark:bg-surface-800 rounded-lg border border-surface-200 shadow-sm"
+                                    class="flex flex-col gap-1 p-2 bg-white rounded-lg border shadow-sm"
                                 >
                                     <div
                                         class="flex justify-between items-center px-1"
                                     >
                                         <label
-                                            :for="dip"
-                                            class="text-[10px] uppercase font-bold text-surface-600"
+                                            class="text-[10px] uppercase font-bold"
                                             >{{ dip }}</label
                                         >
                                         <a
@@ -473,7 +566,7 @@ const submit = () => {
                                                 props.user.profil[dip]
                                             "
                                             target="_blank"
-                                            class="text-emerald-500 text-[9px] font-bold hover:text-emerald-700 flex items-center gap-1"
+                                            class="text-emerald-500 text-[9px] font-bold"
                                         >
                                             <i
                                                 :class="
@@ -493,10 +586,10 @@ const submit = () => {
                                     <input
                                         v-if="isOwner && !hasActiveCandidature"
                                         type="file"
-                                        :id="dip"
                                         @change="handleFileUpload($event, dip)"
                                         class="custom-file-input-small"
-                                        accept=".pdf,image/*"
+                                        accept=".pdf"
+                                        :disabled="form.processing"
                                     />
                                     <div
                                         v-else-if="!props.user.profil?.[dip]"
@@ -510,32 +603,56 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div class="flex justify-end mt-8 border-t pt-6">
-                    <Button
-                        v-if="isOwner && !hasActiveCandidature"
-                        type="submit"
-                        label="Enregistrer les modifications"
-                        icon="pi pi-check"
-                        :loading="form.processing"
-                        class="p-button-emerald px-8"
-                    />
-                    <div
-                        v-else-if="isOwner && hasActiveCandidature"
-                        class="flex align-items-center gap-2 text-orange-600 bg-orange-50 p-3 border-round"
-                    >
-                        <i class="pi pi-lock"></i>
-                        <span class="text-sm">
-                            ⚠️ Modification impossible : vous avez une
-                            candidature en traitement. Complétez votre profil
-                            avant de postuler.
-                        </span>
+                <div
+                    class="flex justify-between items-center mt-8 border-t pt-6"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            v-if="form.processing"
+                            class="flex items-center gap-2 text-emerald-600"
+                        >
+                            <i class="pi pi-spin pi-spinner"></i>
+                            <span class="text-sm">Enregistrement...</span>
+                        </div>
+                        <div
+                            v-else-if="!hasActiveCandidature && isOwner"
+                            class="flex items-center gap-2 text-surface-400"
+                        >
+                            <i class="pi pi-check-circle"></i>
+                            <span class="text-sm"
+                                >Sauvegarde automatique active</span
+                            >
+                            <span v-if="lastSaveTime" class="text-xs ml-2">{{
+                                formattedLastSaveTime()
+                            }}</span>
+                        </div>
                     </div>
-                    <div
-                        v-else
-                        class="flex align-items-center gap-2 text-surface-500 italic bg-surface-100 p-3 border-round"
-                    >
-                        <i class="pi pi-lock"></i>
-                        <span>Mode consultation (Lecture seule)</span>
+
+                    <div class="flex gap-3">
+                        <Button
+                            v-if="isOwner && !hasActiveCandidature"
+                            type="submit"
+                            label="Enregistrer maintenant"
+                            icon="pi pi-save"
+                            :loading="form.processing"
+                            class="p-button-emerald"
+                        />
+                        <div
+                            v-if="!isOwner"
+                            class="flex align-items-center gap-2 text-surface-500 italic bg-surface-100 p-3 border-round"
+                        >
+                            <i class="pi pi-lock"></i>
+                            <span>Mode consultation</span>
+                        </div>
+                        <div
+                            v-if="isOwner && hasActiveCandidature"
+                            class="flex align-items-center gap-2 text-orange-600 bg-orange-50 p-3 border-round"
+                        >
+                            <i class="pi pi-lock"></i>
+                            <span class="text-sm"
+                                >⚠️ Modification impossible</span
+                            >
+                        </div>
                     </div>
                 </div>
             </form>
@@ -544,7 +661,6 @@ const submit = () => {
 </template>
 
 <style scoped>
-/* Animation d'entrée */
 @keyframes slideDown {
     from {
         transform: translateY(-20px);
@@ -558,15 +674,10 @@ const submit = () => {
 
 .alert-banner {
     animation: slideDown 0.3s ease-out;
-}
-
-/* Style du bandeau */
-.alert-banner {
     background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
     border-left: 6px solid #f97316;
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .alert-banner-inner {
@@ -582,39 +693,32 @@ const submit = () => {
     color: #f97316;
 }
 
-/* Conteneur du texte défilant */
 .alert-marquee {
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
-    position: relative;
 }
 
 .alert-marquee-content {
-    display: inline-block;
     animation: scrollText 20s linear infinite;
     font-size: 0.9rem;
     font-weight: 500;
     color: #9a3412;
-    padding-left: 100%;
 }
 
-/* Animation de défilement continue */
 @keyframes scrollText {
     0% {
-        transform: translateX(0);
+        transform: translateX(100%);
     }
     100% {
         transform: translateX(-100%);
     }
 }
 
-/* Pause au survol */
 .alert-marquee:hover .alert-marquee-content {
     animation-play-state: paused;
 }
 
-/* Mode sombre */
 .dark .alert-banner {
     background: linear-gradient(135deg, #2d1a0a 0%, #3b2614 100%);
 }
@@ -627,22 +731,13 @@ const submit = () => {
     color: #fdba74;
 }
 
-/* Version responsive : sur mobile, le texte ne défile pas */
 @media (max-width: 768px) {
     .alert-marquee {
         white-space: normal;
     }
-
     .alert-marquee-content {
         animation: none;
-        padding-left: 0;
-        white-space: normal;
         text-align: center;
-    }
-
-    .alert-banner-inner {
-        flex-wrap: wrap;
-        justify-content: center;
     }
 }
 
@@ -654,7 +749,6 @@ const submit = () => {
     @apply bg-emerald-500 border-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-md shadow-emerald-500/20 !important;
 }
 
-/* FIX FORMAT PASSEPORT (Ratio 3.5 / 4.5) */
 .passport-photo {
     width: 140px;
     height: 180px;

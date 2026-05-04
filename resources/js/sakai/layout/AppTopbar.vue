@@ -18,6 +18,65 @@ const isScrolled = ref(false);
 // ⭐ NOUVEAU : Stockage des notifications temps réel
 const realtimeNotifications = ref([]);
 
+// ⭐ NOUVEAU : Récupérer le service de l'utilisateur (pour gérant/admin)
+const userService = computed(() => {
+    const user = page.props.auth.user;
+    if (!user) return null;
+
+    // Pour les gérants et admins, récupérer le service
+    if (user.roles?.includes("gerant") || user.roles?.includes("admin")) {
+        return user.service || null;
+    }
+    return null;
+});
+
+// ⭐ NOUVEAU : Déterminer le logo à afficher
+const appLogo = computed(() => {
+    const user = page.props.auth.user;
+    if (!user) return "/Images/DTTIA.jpeg";
+
+    // Pour superadmin et operator : logo Fama.png
+    if (
+        user.roles?.includes("superadmin") ||
+        user.roles?.includes("operator")
+    ) {
+        return "/Images/Fama.png";
+    }
+
+    // Pour gérant et admin : logo du service (si disponible)
+    if (userService.value?.logo_url) {
+        return userService.value.logo_url;
+    }
+
+    return "/Images/DTTIA.jpeg";
+});
+
+// ⭐ NOUVEAU : Déterminer le nom principal (coloré)
+const appPrimaryName = computed(() => {
+    const user = page.props.auth.user;
+    if (!user) return "Recrutement";
+
+    // Pour superadmin et operator : FAMa
+    if (
+        user.roles?.includes("superadmin") ||
+        user.roles?.includes("operator")
+    ) {
+        return "FAMa";
+    }
+
+    // Pour gérant et admin : nom du service
+    if (userService.value?.nom) {
+        return userService.value.nom;
+    }
+
+    return "Recrutement";
+});
+
+// ⭐ NOUVEAU : Déterminer le sous-titre (Recrutement) - toujours en noir/gris
+const appSecondaryName = computed(() => {
+    return "Recrutement";
+});
+
 // Computed pour l'état du menu mobile
 const isMobileMenuOpen = computed(() => layoutState.staticMenuMobileActive);
 
@@ -189,7 +248,7 @@ const closeMobileMenu = () => {
 </script>
 
 <template>
-    <!-- LE TEMPLATE RESTE EXACTEMENT IDENTIQUE -->
+    <!-- LE TEMPLATE RESTE EXACTEMENT IDENTIQUE - SEUL LE CONTENU DU LOGO/NOM CHANGE -->
     <div
         class="layout-topbar fixed top-0 left-0 right-0 z-50 transition-all duration-300"
         :class="topbarClasses"
@@ -234,19 +293,24 @@ const closeMobileMenu = () => {
                                         : 'bg-emerald-500/20'
                                 "
                             ></div>
+                            <!-- ⭐ SEULE MODIFICATION ICI : logo dynamique -->
                             <img
-                                src="/Images/DTTIA.jpeg"
+                                :src="appLogo"
                                 alt="DTTIA"
                                 class="h-8 sm:h-10 md:h-12 w-auto relative rounded-lg shadow-lg group-hover:shadow-emerald-500/20 group-hover:scale-105 transition-all duration-300"
                                 :class="{ 'brightness-90': isDarkTheme }"
+                                @error="
+                                    (e) => (e.target.src = '/Images/DTTIA.jpeg')
+                                "
                             />
                         </div>
+                        <!-- ⭐ SEULE MODIFICATION ICI : noms dynamiques -->
                         <div class="flex flex-col">
                             <span
                                 class="font-black text-sm sm:text-base md:text-xl tracking-tight leading-none transition-colors"
                                 :class="logoTextClasses"
                             >
-                                Recrutement
+                                {{ appPrimaryName }}
                             </span>
                             <span
                                 class="font-medium text-xs sm:text-sm md:text-base tracking-wide transition-colors"
@@ -256,7 +320,7 @@ const closeMobileMenu = () => {
                                         : 'text-gray-700'
                                 "
                             >
-                                DTTIA
+                                {{ appSecondaryName }}
                             </span>
                         </div>
                     </NavLink>
@@ -429,6 +493,22 @@ const closeMobileMenu = () => {
                                     {{ page.props.auth.user?.email }}
                                 </p>
                             </div>
+                            <!-- ⭐ Bouton Paramètres (Profile) -->
+                            <DropdownLink
+                                :href="route('profile.edit')"
+                                as="a"
+                                class="w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                            >
+                                <i class="pi pi-cog text-[10px] sm:text-xs"></i>
+                                Paramètres
+                            </DropdownLink>
+
+                            <!-- ⭐ Séparateur -->
+                            <div
+                                class="border-t dark:border-gray-700 my-1"
+                            ></div>
+
+                            <!-- Bouton Déconnexion -->
                             <DropdownLink
                                 :href="route('logout')"
                                 method="post"

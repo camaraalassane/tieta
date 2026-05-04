@@ -10,6 +10,10 @@ class Profil extends Model
         'nom',
         'prenom',
         'sexe',
+        'nina',
+        'prenom_pere',
+        'prenom_mere',
+        'nom_mere',
         'telephone',
         'email',
         'date_naissance',
@@ -36,5 +40,10 @@ public function user()
     return $this->belongsTo(User::class);
 }
 
+    // ⭐ Formater automatiquement le NINA en majuscules
+    public function setNinaAttribute($value)
+    {
+        $this->attributes['nina'] = $value ? strtoupper($value) : null;
+    }
 
 }

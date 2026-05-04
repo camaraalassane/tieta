@@ -2,29 +2,24 @@
 import AppLayout from "@/sakai/layout/AppLayout.vue";
 import Create from "@/Pages/Concours/Create.vue";
 import Edit from "@/Pages/Concours/Edit.vue";
-import { usePage, useForm, router } from '@inertiajs/vue3';
+import { usePage, useForm, router } from "@inertiajs/vue3";
 import { onMounted, reactive, ref, watch, computed } from "vue";
 import { cloneDeep, debounce, pickBy } from "lodash";
-import { loadToast } from '@/composables/loadToast';
-
-// ⭐ Les composants PrimeVue sont automatiquement résolus, pas besoin de les importer
-// import Badge from 'primevue/badge';
-// import Card from 'primevue/card';
-// import Button from 'primevue/button';
-// ... etc
+import { loadToast } from "@/composables/loadToast";
 
 const openAvis = (url) => {
     if (url) {
-        window.open(url, '_blank');
+        window.open(url, "_blank");
     }
 };
 
 const props = defineProps({
     title: String,
     filters: Object,
-    concours: Array,
+    concours: [Array, Object],
     perPage: Number,
     total: Number,
+    services: { type: Array, default: () => [] },
 });
 
 const can = (permissions) => {
@@ -35,38 +30,57 @@ const can = (permissions) => {
     if (user.is_superadmin) return true;
 
     const userPermissions = user.permissions || [];
-    const searchPermissions = Array.isArray(permissions) ? permissions : [permissions];
+    const searchPermissions = Array.isArray(permissions)
+        ? permissions
+        : [permissions];
 
-    return searchPermissions.some(p => userPermissions.includes(p));
+    return searchPermissions.some((p) => userPermissions.includes(p));
 };
 
 loadToast();
 
 const deleteDialog = ref(false);
 const form = useForm({});
-const menuRef = ref();
 const selectedConcours = ref([]);
+
+// ⭐ Récupérer le rôle de l'utilisateur
+const user = usePage().props.auth.user;
+const isSuperAdmin = computed(() => user?.roles?.includes("superadmin"));
+const isGerant = computed(() => user?.roles?.includes("gerant"));
+const isAdmin = computed(() => user?.roles?.includes("admin"));
 
 const data = reactive({
     params: {
-        search: props.filters?.search || '',
-        field: props.filters?.field || 'created_at',
-        order: props.filters?.order || 'desc',
+        search: props.filters?.search || "",
+        field: props.filters?.field || "created_at",
+        order: props.filters?.order || "desc",
     },
     createOpen: false,
     editOpen: false,
     concours: {},
 });
 
-// Statistiques calculées
+// ⭐ Récupérer la liste des concours
+const concoursList = computed(() => {
+    if (Array.isArray(props.concours)) {
+        return props.concours;
+    }
+    if (props.concours?.data && Array.isArray(props.concours.data)) {
+        return props.concours.data;
+    }
+    return [];
+});
+
+// ⭐ Statistiques calculées
 const stats = computed(() => {
-    const actifs = props.concours?.filter(c => c.statut === 'Actif').length || 0;
-    const inactifs = props.concours?.filter(c => c.statut !== 'Actif').length || 0;
+    const list = concoursList.value;
+    const actifs = list.filter((c) => c.statut === "Actif").length || 0;
+    const inactifs = list.filter((c) => c.statut !== "Actif").length || 0;
     return {
-        total: props.total || 0,
+        total: props.total || list.length || 0,
         actifs,
         inactifs,
-        avecAvis: props.concours?.filter(c => c.avis).length || 0
+        avecAvis: list.filter((c) => c.avis).length || 0,
     };
 });
 
@@ -78,16 +92,20 @@ const deleteData = () => {
             onSuccess: () => {
                 form.reset();
                 data.concours = {};
-            }
+            },
         });
     }
 };
 
 const onPageChange = (event) => {
-    router.get(route('concours.index'), { 
-        page: event.page + 1,
-        ...data.params 
-    }, { preserveState: true });
+    router.get(
+        route("concours.index"),
+        {
+            page: event.page + 1,
+            ...data.params,
+        },
+        { preserveState: true },
+    );
 };
 
 watch(
@@ -99,66 +117,141 @@ watch(
             preserveState: true,
             preserveScroll: true,
         });
-    }, 150)
+    }, 150),
 );
 
 const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
     });
 };
 
-const items = ref([
-    {
-        label: 'Modifier',
-        icon: 'pi pi-pencil',
-        command: () => { data.editOpen = true; }
-    },
-    {
-        label: 'Supprimer',
-        icon: 'pi pi-trash',
-        command: () => { deleteDialog.value = true; }
+// ⭐ Vérifier si l'utilisateur peut créer un concours
+const canCreateConcours = computed(() => {
+    return isSuperAdmin.value || isGerant.value;
+});
+
+// ⭐ Vérifier si l'utilisateur peut modifier un concours
+const canEditConcours = (concour) => {
+    // Superadmin peut tout modifier
+    if (isSuperAdmin.value) return true;
+
+    // Gérant peut modifier les concours de son service
+    if (isGerant.value) {
+        const userService = user?.service;
+        return userService && concour.service_id === userService.id;
     }
-]);
+
+    // Admin peut modifier uniquement les concours où il est assigné
+    if (isAdmin.value) {
+        return concour.admins?.some((admin) => admin.id === user?.id) || false;
+    }
+
+    return false;
+};
+
+// ⭐ Vérifier si l'utilisateur peut supprimer un concours (SUPERADMIN ou GERANT de son service)
+const canDeleteConcours = (concour) => {
+    // Superadmin peut tout supprimer
+    if (isSuperAdmin.value) return true;
+
+    // Gérant peut supprimer les concours de son service
+    if (isGerant.value) {
+        const userService = user?.service;
+        return userService && concour.service_id === userService.id;
+    }
+
+    // Admin ne peut pas supprimer
+    return false;
+};
+
+// ⭐ Récupérer le total des pages
+const totalRecords = computed(() => {
+    if (props.total) return props.total;
+    if (props.concours?.total) return props.concours.total;
+    return concoursList.value.length;
+});
 </script>
+
 <template>
     <app-layout>
         <div class="p-fluid px-4 md:px-6 lg:px-8">
             <!-- En-tête avec statistiques -->
             <div class="grid mb-6">
                 <div class="col-12">
-                    <Card class="shadow-lg border-none overflow-hidden bg-gradient-to-r from-emerald-50 to-white dark:from-emerald-900/20 dark:to-gray-900">
+                    <Card
+                        class="shadow-lg border-none overflow-hidden bg-gradient-to-r from-emerald-50 to-white dark:from-emerald-900/20 dark:to-gray-900"
+                    >
                         <template #content>
-                            <div class="flex flex-column lg:flex-row align-items-center justify-content-between gap-4">
+                            <div
+                                class="flex flex-column lg:flex-row align-items-center justify-content-between gap-4"
+                            >
                                 <div class="flex align-items-center gap-4">
-                                    <div class="w-16 h-16 bg-emerald-500 border-round-xl flex align-items-center justify-center">
-                                        <i class="pi pi-briefcase text-white text-3xl"></i>
+                                    <div
+                                        class="w-16 h-16 bg-emerald-500 border-round-xl flex align-items-center justify-center"
+                                    >
+                                        <i
+                                            class="pi pi-briefcase text-white text-3xl"
+                                        ></i>
                                     </div>
                                     <div>
-                                        <h1 class="text-3xl font-bold text-900 m-0 mb-2">Gestion des Concours</h1>
-                                        <p class="text-600 m-0 flex align-items-center gap-2">
-                                            <i class="pi pi-check-circle text-emerald-500"></i>
-                                            Gérez l'ensemble des concours de la plateforme
+                                        <h1
+                                            class="text-3xl font-bold text-900 m-0 mb-2"
+                                        >
+                                            Gestion des Concours
+                                        </h1>
+                                        <p
+                                            class="text-600 m-0 flex align-items-center gap-2"
+                                        >
+                                            <i
+                                                class="pi pi-check-circle text-emerald-500"
+                                            ></i>
+                                            Gérez l'ensemble des concours de la
+                                            plateforme
                                         </p>
                                     </div>
                                 </div>
-                                
-                                <div class="flex gap-4 flex-wrap justify-content-center">
-                                    <div class="text-center px-3 py-2 bg-white dark:bg-gray-800 border-round-lg">
-                                        <Badge :value="stats.total" severity="info" class="mb-1"></Badge>
-                                        <div class="text-xs text-500">Total</div>
+
+                                <div
+                                    class="flex gap-4 flex-wrap justify-content-center"
+                                >
+                                    <div
+                                        class="text-center px-3 py-2 bg-white dark:bg-gray-800 border-round-lg"
+                                    >
+                                        <Badge
+                                            :value="stats.total"
+                                            severity="info"
+                                            class="mb-1"
+                                        ></Badge>
+                                        <div class="text-xs text-500">
+                                            Total
+                                        </div>
                                     </div>
-                                    <div class="text-center px-3 py-2 bg-white dark:bg-gray-800 border-round-lg">
-                                        <Badge :value="stats.actifs" severity="success" class="mb-1"></Badge>
-                                        <div class="text-xs text-500">Actifs</div>
+                                    <div
+                                        class="text-center px-3 py-2 bg-white dark:bg-gray-800 border-round-lg"
+                                    >
+                                        <Badge
+                                            :value="stats.actifs"
+                                            severity="success"
+                                            class="mb-1"
+                                        ></Badge>
+                                        <div class="text-xs text-500">
+                                            Actifs
+                                        </div>
                                     </div>
-                                    <div class="text-center px-3 py-2 bg-white dark:bg-gray-800 border-round-lg">
-                                        <Badge :value="stats.avecAvis" severity="warn" class="mb-1"></Badge>
+                                    <div
+                                        class="text-center px-3 py-2 bg-white dark:bg-gray-800 border-round-lg"
+                                    >
+                                        <Badge
+                                            :value="stats.avecAvis"
+                                            severity="warn"
+                                            class="mb-1"
+                                        ></Badge>
                                         <div class="text-xs text-500">Avis</div>
                                     </div>
                                 </div>
@@ -173,10 +266,17 @@ const items = ref([
                 <div class="col-12">
                     <Card class="shadow-sm">
                         <template #content>
-                            <div class="flex flex-column md:flex-row align-items-center justify-content-between gap-4">
+                            <div
+                                class="flex flex-column md:flex-row align-items-center justify-content-between gap-4"
+                            >
                                 <!-- Recherche -->
-                                <IconField iconPosition="left" class="flex-1 w-full">
-                                    <InputIcon class="pi pi-search text-emerald-500" />
+                                <IconField
+                                    iconPosition="left"
+                                    class="flex-1 w-full"
+                                >
+                                    <InputIcon
+                                        class="pi pi-search text-emerald-500"
+                                    />
                                     <InputText
                                         v-model="data.params.search"
                                         placeholder="Rechercher un concours..."
@@ -186,8 +286,8 @@ const items = ref([
 
                                 <!-- Actions -->
                                 <div class="flex gap-2 w-full md:w-auto">
-                                    <Button 
-                                        v-if="can('create concours')"
+                                    <Button
+                                        v-if="canCreateConcours"
                                         label="Nouveau concours"
                                         icon="pi pi-plus"
                                         class="bg-emerald-500 hover:bg-emerald-600 border-none text-white"
@@ -203,11 +303,11 @@ const items = ref([
             <!-- Tableau des concours -->
             <Card class="shadow-md">
                 <template #content>
-                    <DataTable 
-                        :value="props.concours" 
-                        paginator 
-                        :rows="10" 
-                        :totalRecords="total" 
+                    <DataTable
+                        :value="concoursList"
+                        paginator
+                        :rows="10"
+                        :totalRecords="totalRecords"
                         @page="onPageChange"
                         tableStyle="min-width: 60rem"
                         class="p-datatable-sm"
@@ -220,43 +320,75 @@ const items = ref([
                     >
                         <template #empty>
                             <div class="text-center py-8">
-                                <i class="pi pi-inbox text-4xl text-300 mb-3"></i>
+                                <i
+                                    class="pi pi-inbox text-4xl text-300 mb-3"
+                                ></i>
                                 <p class="text-600">Aucun concours trouvé</p>
                             </div>
                         </template>
-                        
+
                         <template #loading>
                             <div class="text-center py-4">
-                                <i class="pi pi-spinner pi-spin text-2xl text-emerald-500"></i>
-                                <p class="text-600 mt-2">Chargement des données...</p>
+                                <i
+                                    class="pi pi-spinner pi-spin text-2xl text-emerald-500"
+                                ></i>
+                                <p class="text-600 mt-2">
+                                    Chargement des données...
+                                </p>
                             </div>
                         </template>
 
                         <Column header="#" headerStyle="width: 5%">
                             <template #body="slotProps">
-                                <span class="text-500 text-sm">{{ slotProps.index + 1 }}</span>
+                                <span class="text-500 text-sm">{{
+                                    slotProps.index + 1
+                                }}</span>
                             </template>
                         </Column>
 
                         <Column field="intitule" header="Intitulé" sortable>
                             <template #body="slotProps">
                                 <div class="flex align-items-center gap-2">
-                                    <i class="pi pi-briefcase text-emerald-500"></i>
-                                    <span class="font-medium">{{ slotProps.data.intitule }}</span>
+                                    <i
+                                        class="pi pi-briefcase text-emerald-500"
+                                    ></i>
+                                    <span class="font-medium">{{
+                                        slotProps.data.intitule
+                                    }}</span>
                                 </div>
+                            </template>
+                        </Column>
+
+                        <Column field="service_nom" header="Service" sortable>
+                            <template #body="slotProps">
+                                <Tag
+                                    v-if="slotProps.data.service_nom"
+                                    :value="slotProps.data.service_nom"
+                                    severity="info"
+                                    class="text-xs"
+                                />
+                                <span v-else class="text-400 text-sm"
+                                    >Non assigné</span
+                                >
                             </template>
                         </Column>
 
                         <Column field="description" header="Description">
                             <template #body="slotProps">
-                                <span class="text-sm text-600 line-clamp-2">{{ slotProps.data.description }}</span>
+                                <span class="text-sm text-600 line-clamp-2">{{
+                                    slotProps.data.description
+                                }}</span>
                             </template>
                         </Column>
 
                         <Column field="statut" header="Statut" sortable>
                             <template #body="slotProps">
-                                <Tag 
-                                    :severity="slotProps.data.statut === 'Actif' ? 'success' : 'danger'" 
+                                <Tag
+                                    :severity="
+                                        slotProps.data.statut === 'Actif'
+                                            ? 'success'
+                                            : 'danger'
+                                    "
                                     :value="slotProps.data.statut"
                                     rounded
                                     class="px-3 py-1"
@@ -266,55 +398,86 @@ const items = ref([
 
                         <Column header="Avis" style="text-align: center">
                             <template #body="slotProps">
-                                <a v-if="slotProps.data.avis" :href="slotProps.data.avis" target="_blank">
-                                    <Button 
-                                        icon="pi pi-external-link" 
-                                        rounded 
-                                        text 
-                                        severity="info" 
-                                        v-tooltip="'Ouvrir l\'avis'"
-                                        class="hover:text-emerald-500"
-                                    />
-                                </a>
+                                <Button
+                                    v-if="slotProps.data.avis"
+                                    icon="pi pi-external-link"
+                                    rounded
+                                    text
+                                    severity="info"
+                                    v-tooltip="'Ouvrir l\'avis'"
+                                    @click="openAvis(slotProps.data.avis)"
+                                    class="hover:text-emerald-500"
+                                />
                                 <i v-else class="pi pi-minus text-300"></i>
+                            </template>
+                        </Column>
+
+                        <Column
+                            field="date_limite"
+                            header="Date limite"
+                            sortable
+                        >
+                            <template #body="slotProps">
+                                <div class="flex flex-column">
+                                    <span class="text-sm">{{
+                                        formatDate(slotProps.data.date_limite)
+                                    }}</span>
+                                    <span
+                                        v-if="
+                                            new Date(
+                                                slotProps.data.date_limite,
+                                            ) < new Date()
+                                        "
+                                        class="text-red-500 text-xs"
+                                    >
+                                        Expiré
+                                    </span>
+                                </div>
                             </template>
                         </Column>
 
                         <Column field="created_at" header="Création" sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-column">
-                                    <span class="text-sm">{{ formatDate(slotProps.data.created_at) }}</span>
+                                    <span class="text-sm">{{
+                                        formatDate(slotProps.data.created_at)
+                                    }}</span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column field="updated_at" header="Modification" sortable>
-                            <template #body="slotProps">
-                                <div class="flex flex-column">
-                                    <span class="text-sm">{{ formatDate(slotProps.data.updated_at) }}</span>
-                                </div>
-                            </template>
-                        </Column>
-
-                        <Column :exportable="false" header="Actions" style="width: 8rem">
+                        <!-- ⭐ Colonne Actions corrigée -->
+                        <Column
+                            :exportable="false"
+                            header="Actions"
+                            style="width: 8rem"
+                        >
                             <template #body="slotProps">
                                 <div class="flex align-items-center gap-2">
-                                    <Button 
-                                        v-if="can(['update concours'])"
+                                    <!-- ⭐ Bouton Modifier -->
+                                    <Button
+                                        v-if="canEditConcours(slotProps.data)"
                                         icon="pi pi-pencil"
                                         rounded
                                         text
                                         severity="info"
-                                        @click="(data.editOpen = true), (data.concours = slotProps.data)"
+                                        @click="
+                                            (data.editOpen = true),
+                                                (data.concours = slotProps.data)
+                                        "
                                         v-tooltip="'Modifier'"
                                     />
-                                    <Button 
-                                        v-if="can('delete concours')"
+                                    <!-- ⭐ Bouton Supprimer - pour SUPERADMIN et GERANT de son service -->
+                                    <Button
+                                        v-if="canDeleteConcours(slotProps.data)"
                                         icon="pi pi-trash"
                                         rounded
                                         text
                                         severity="danger"
-                                        @click="deleteDialog = true; data.concours = slotProps.data"
+                                        @click="
+                                            deleteDialog = true;
+                                            data.concours = slotProps.data;
+                                        "
                                         v-tooltip="'Supprimer'"
                                     />
                                 </div>
@@ -325,38 +488,47 @@ const items = ref([
             </Card>
 
             <!-- Dialog de confirmation -->
-            <Dialog 
-                v-model:visible="deleteDialog" 
-                :style="{ width: '450px' }" 
-                header="Confirmation" 
+            <Dialog
+                v-model:visible="deleteDialog"
+                :style="{ width: '450px' }"
+                header="Confirmation"
                 :modal="true"
                 class="p-fluid"
             >
                 <div class="flex flex-column align-items-center gap-4 p-4">
-                    <div class="w-16 h-16 bg-red-100 border-circle flex align-items-center justify-content-center">
-                        <i class="pi pi-exclamation-triangle text-3xl text-red-600"></i>
+                    <div
+                        class="w-16 h-16 bg-red-100 border-circle flex align-items-center justify-content-center"
+                    >
+                        <i
+                            class="pi pi-exclamation-triangle text-3xl text-red-600"
+                        ></i>
                     </div>
                     <div class="text-center">
-                        <h3 class="text-lg font-semibold mb-2">Êtes-vous sûr ?</h3>
+                        <h3 class="text-lg font-semibold mb-2">
+                            Êtes-vous sûr ?
+                        </h3>
                         <p v-if="data.concours" class="text-sm text-600">
-                            Vous allez supprimer le concours <span class="font-bold">{{ data.concours.intitule }}</span>.
-                            Cette action est irréversible.
+                            Vous allez supprimer le concours
+                            <span class="font-bold">{{
+                                data.concours.intitule
+                            }}</span
+                            >. Cette action est irréversible.
                         </p>
                     </div>
                 </div>
                 <template #footer>
                     <div class="flex justify-content-center gap-2">
-                        <Button 
-                            label="Annuler" 
-                            icon="pi pi-times" 
-                            class="p-button-outlined p-button-secondary" 
-                            @click="deleteDialog = false" 
+                        <Button
+                            label="Annuler"
+                            icon="pi pi-times"
+                            class="p-button-outlined p-button-secondary"
+                            @click="deleteDialog = false"
                         />
-                        <Button 
-                            label="Supprimer" 
-                            icon="pi pi-trash" 
-                            class="p-button-danger" 
-                            @click="deleteData" 
+                        <Button
+                            label="Supprimer"
+                            icon="pi pi-trash"
+                            class="p-button-danger"
+                            @click="deleteData"
                         />
                     </div>
                 </template>
@@ -368,12 +540,14 @@ const items = ref([
                 @close="data.createOpen = false"
                 :title="props.title"
                 :concours="props.concours"
+                :services="services"
             />
             <Edit
                 :show="data.editOpen"
                 @close="data.editOpen = false"
                 :title="props.title"
                 :concours="data.concours"
+                :services="services"
             />
         </div>
     </app-layout>
@@ -383,8 +557,8 @@ const items = ref([
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
     line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
     max-height: 3em;
 }
@@ -439,7 +613,12 @@ const items = ref([
     border-top: 1px solid var(--surface-border);
 }
 
-:deep(.p-datatable .p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+:deep(
+        .p-datatable
+            .p-paginator
+            .p-paginator-pages
+            .p-paginator-page.p-highlight
+    ) {
     background: #10b981;
     border-color: #10b981;
     color: white;

@@ -28,19 +28,18 @@
     24 => 'Barryvdh\\LaravelIdeHelper\\IdeHelperServiceProvider',
     25 => 'Inertia\\ServiceProvider',
     26 => 'Laravel\\Breeze\\BreezeServiceProvider',
-    27 => 'Laravel\\Reverb\\ApplicationManagerServiceProvider',
-    28 => 'Laravel\\Reverb\\ReverbServiceProvider',
-    29 => 'Laravel\\Sail\\SailServiceProvider',
-    30 => 'Laravel\\Sanctum\\SanctumServiceProvider',
-    31 => 'Laravel\\Tinker\\TinkerServiceProvider',
-    32 => 'Carbon\\Laravel\\ServiceProvider',
-    33 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
-    34 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    35 => 'Pest\\Laravel\\PestServiceProvider',
-    36 => 'Spatie\\LaravelIgnition\\IgnitionServiceProvider',
-    37 => 'Spatie\\Permission\\PermissionServiceProvider',
-    38 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
-    39 => 'App\\Providers\\AppServiceProvider',
+    27 => 'Laravel\\Sail\\SailServiceProvider',
+    28 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    29 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    30 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
+    31 => 'Carbon\\Laravel\\ServiceProvider',
+    32 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
+    33 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    34 => 'Pest\\Laravel\\PestServiceProvider',
+    35 => 'Spatie\\LaravelIgnition\\IgnitionServiceProvider',
+    36 => 'Spatie\\Permission\\PermissionServiceProvider',
+    37 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
+    38 => 'App\\Providers\\AppServiceProvider',
   ),
   'eager' => 
   array (
@@ -56,8 +55,8 @@
     9 => 'Illuminate\\View\\ViewServiceProvider',
     10 => 'Barryvdh\\DomPDF\\ServiceProvider',
     11 => 'Inertia\\ServiceProvider',
-    12 => 'Laravel\\Reverb\\ReverbServiceProvider',
-    13 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    12 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    13 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
     14 => 'Carbon\\Laravel\\ServiceProvider',
     15 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     16 => 'Termwind\\Laravel\\TermwindServiceProvider',
@@ -228,8 +227,6 @@
     'Barryvdh\\LaravelIdeHelper\\Console\\MetaCommand' => 'Barryvdh\\LaravelIdeHelper\\IdeHelperServiceProvider',
     'Barryvdh\\LaravelIdeHelper\\Console\\EloquentCommand' => 'Barryvdh\\LaravelIdeHelper\\IdeHelperServiceProvider',
     'Laravel\\Breeze\\Console\\InstallCommand' => 'Laravel\\Breeze\\BreezeServiceProvider',
-    'Laravel\\Reverb\\ApplicationManager' => 'Laravel\\Reverb\\ApplicationManagerServiceProvider',
-    'Laravel\\Reverb\\Contracts\\ApplicationProvider' => 'Laravel\\Reverb\\ApplicationManagerServiceProvider',
     'Laravel\\Sail\\Console\\InstallCommand' => 'Laravel\\Sail\\SailServiceProvider',
     'Laravel\\Sail\\Console\\PublishCommand' => 'Laravel\\Sail\\SailServiceProvider',
     'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
@@ -279,9 +276,6 @@
     array (
     ),
     'Laravel\\Breeze\\BreezeServiceProvider' => 
-    array (
-    ),
-    'Laravel\\Reverb\\ApplicationManagerServiceProvider' => 
     array (
     ),
     'Laravel\\Sail\\SailServiceProvider' => 

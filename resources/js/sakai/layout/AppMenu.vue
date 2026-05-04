@@ -1,23 +1,57 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import AppMenuItem from "./AppMenuItem.vue";
 import { useLayout } from "@/sakai/layout/composables/layout";
 
 const page = usePage();
-const userData = computed(() => page.props.auth.user);
 const { layoutState } = useLayout();
+
+// ⭐ Stocker le rôle initial de l'utilisateur au chargement
+const userRoles = ref([]);
+const userServiceId = ref(null);
+const isLoading = ref(true);
 
 // État pour la recherche dans le menu
 const searchQuery = ref("");
 const isSearchVisible = ref(false);
 
-const model = computed(() => {
-    const user = userData.value;
-    const isAdmin =
-        user?.is_superadmin === true || user?.roles?.includes("admin");
+// ⭐ Capturer les données utilisateur une fois au démarrage
+onMounted(() => {
+    const user = page.props.auth.user;
+    if (user) {
+        userRoles.value = user.roles || [];
+        userServiceId.value =
+            user.service?.id ||
+            user.service_id ||
+            user.service_gerant?.id ||
+            null;
+    }
+    isLoading.value = false;
+});
 
-    if (isAdmin) {
+// ⭐ Utiliser les valeurs stockées pour les vérifications de rôle
+const isSuperAdmin = computed(() => userRoles.value.includes("superadmin"));
+const isAdmin = computed(
+    () =>
+        userRoles.value.includes("admin") &&
+        !userRoles.value.includes("superadmin"),
+);
+const isGerant = computed(() => userRoles.value.includes("gerant"));
+const isOperator = computed(() => userRoles.value.includes("operator"));
+
+// ⭐ Récupérer l'ID du service depuis les données stockées
+const serviceId = computed(() => userServiceId.value);
+
+// ⭐ Menu principal - utilise les rôles stockés
+const model = computed(() => {
+    // Attendre le chargement initial
+    if (isLoading.value) return [];
+
+    const currentUser = page.props.auth.user;
+
+    // ⭐ Menu pour SUPERADMIN
+    if (isSuperAdmin.value) {
         return [
             {
                 label: "PILOTAGE",
@@ -34,13 +68,11 @@ const model = computed(() => {
             {
                 label: "ADMINISTRATION",
                 icon: "pi-cog",
-                badge: user?.pending_requests || null,
                 items: [
                     {
                         label: "Utilisateurs",
                         icon: "pi-users",
                         to: "/user",
-                        badge: user?.new_users || null,
                         description: "Gérer les comptes",
                     },
                     {
@@ -48,6 +80,18 @@ const model = computed(() => {
                         icon: "pi-shield",
                         to: "/role",
                         description: "Configurer les accès",
+                    },
+                ],
+            },
+            {
+                label: "SERVICES",
+                icon: "pi-building",
+                items: [
+                    {
+                        label: "Gestion des services",
+                        icon: "pi-building",
+                        to: "/admin/services",
+                        description: "Créer et gérer les services",
                     },
                 ],
             },
@@ -90,8 +134,253 @@ const model = computed(() => {
                         icon: "pi-envelope",
                         to: "/cour-messagerie",
                         badge:
-                            user?.unread_messages_count > 0
-                                ? user.unread_messages_count
+                            currentUser?.unread_messages_count > 0
+                                ? currentUser.unread_messages_count
+                                : null,
+                        badgeClass: "danger",
+                        description: "Messages internes",
+                    },
+                    {
+                        label: "Diffusion de messages",
+                        icon: "pi-send",
+                        to: "/broadcast",
+                        description: "Envoyer un message à tous les candidats",
+                    },
+                ],
+            },
+            {
+                label: "DÉLIBÉRATIONS",
+                icon: "pi-file-pdf",
+                items: [
+                    {
+                        label: "Créer un résultat",
+                        icon: "pi-cloud-upload",
+                        to: "/concour-creerResultat",
+                        description: "Publier les résultats",
+                    },
+                    {
+                        label: "Gestion des résultats",
+                        icon: "pi-copy",
+                        to: "/concour-gererResultat",
+                        description: "Historique",
+                    },
+                    {
+                        label: "Historique candidatures",
+                        icon: "pi-history",
+                        to: "/concours-historique",
+                        description: "Consulter l'historique complet",
+                    },
+                ],
+            },
+            // ⭐ TRAÇABILITÉ - TOUT EN BAS
+            {
+                label: "TRAÇABILITÉ",
+                icon: "pi-history",
+                items: [
+                    {
+                        label: "Journal des événements",
+                        icon: "pi-list",
+                        to: "/tracabilite",
+                        description: "Suivi de toutes les actions",
+                    },
+                ],
+            },
+        ];
+    }
+
+    // ⭐ Menu pour GÉRANT
+    if (isGerant.value) {
+        const hasServiceId = serviceId.value !== null;
+        const serviceShowUrl = hasServiceId
+            ? `/services/${serviceId.value}`
+            : "#";
+        const personnelUrl = hasServiceId
+            ? `/services/${serviceId.value}/personnel`
+            : "#";
+
+        return [
+            {
+                label: "PILOTAGE",
+                icon: "pi-chart-line",
+                items: [
+                    {
+                        label: "Tableau de bord",
+                        icon: "pi-th-large",
+                        to: "/dashboard",
+                        description: "Vue d'ensemble",
+                    },
+                ],
+            },
+            {
+                label: "MON SERVICE",
+                icon: "pi-building",
+                items: [
+                    {
+                        label: "Mon service",
+                        icon: "pi-building",
+                        to: serviceShowUrl,
+                        description: "Consulter mon service",
+                        disabled: !hasServiceId,
+                    },
+                    {
+                        label: "Personnel",
+                        icon: "pi-users",
+                        to: personnelUrl,
+                        description: "Gérer le personnel",
+                        disabled: !hasServiceId,
+                    },
+                ],
+            },
+            {
+                label: "CONCOURS",
+                icon: "pi-calendar",
+                items: [
+                    {
+                        label: "Nouveau concours",
+                        icon: "pi-plus-circle",
+                        to: "/concours",
+                        description: "Créer un concours",
+                    },
+                    {
+                        label: "Affectations",
+                        icon: "pi-user-plus",
+                        to: "/concours-admins",
+                        description:
+                            "Assigner les administrateurs aux concours",
+                    },
+                    {
+                        label: "Gestion des concours",
+                        icon: "pi-search",
+                        to: "/concours-consulter",
+                        description: "Consulter et modifier",
+                    },
+                    {
+                        label: "Communiqués",
+                        icon: "pi-megaphone",
+                        to: "/communiques",
+                        description: "Gérer les communiqués officiels",
+                    },
+                ],
+            },
+            {
+                label: "COMMUNICATION",
+                icon: "pi-comments",
+                items: [
+                    {
+                        label: "Messagerie",
+                        icon: "pi-envelope",
+                        to: "/cour-messagerie",
+                        badge:
+                            currentUser?.unread_messages_count > 0
+                                ? currentUser.unread_messages_count
+                                : null,
+                        badgeClass: "danger",
+                        description: "Messages internes",
+                    },
+                    {
+                        label: "Diffusion de messages",
+                        icon: "pi-send",
+                        to: "/broadcast",
+                        description: "Envoyer un message à tous les candidats",
+                    },
+                ],
+            },
+            {
+                label: "DÉLIBÉRATIONS",
+                icon: "pi-file-pdf",
+                items: [
+                    {
+                        label: "Créer un résultat",
+                        icon: "pi-cloud-upload",
+                        to: "/concour-creerResultat",
+                        description: "Publier les résultats",
+                    },
+                    {
+                        label: "Gestion des résultats",
+                        icon: "pi-copy",
+                        to: "/concour-gererResultat",
+                        description: "Historique",
+                    },
+                    {
+                        label: "Historique candidatures",
+                        icon: "pi-history",
+                        to: "/concours-historique",
+                        description: "Consulter l'historique complet",
+                    },
+                ],
+            },
+            // ⭐ TRAÇABILITÉ - TOUT EN BAS
+            {
+                label: "TRAÇABILITÉ",
+                icon: "pi-history",
+                items: [
+                    {
+                        label: "Journal des événements",
+                        icon: "pi-list",
+                        to: "/tracabilite",
+                        description: "Suivi des actions du service",
+                    },
+                ],
+            },
+        ];
+    }
+
+    // ⭐ Menu pour ADMIN
+    if (isAdmin.value) {
+        return [
+            {
+                label: "PILOTAGE",
+                icon: "pi-chart-line",
+                items: [
+                    {
+                        label: "Tableau de bord",
+                        icon: "pi-th-large",
+                        to: "/dashboard",
+                        description: "Vue d'ensemble",
+                    },
+                ],
+            },
+            {
+                label: "CONCOURS",
+                icon: "pi-calendar",
+                items: [
+                    {
+                        label: "Nouveau concours",
+                        icon: "pi-plus-circle",
+                        to: "/concours",
+                        description: "Créer un concours",
+                    },
+                    {
+                        label: "Affectations",
+                        icon: "pi-user-plus",
+                        to: "/concours-admins",
+                        description: "Assigner les admins",
+                    },
+                    {
+                        label: "Gestion des concours",
+                        icon: "pi-search",
+                        to: "/concours-consulter",
+                        description: "Consulter et modifier",
+                    },
+                    {
+                        label: "Communiqués",
+                        icon: "pi-megaphone",
+                        to: "/communiques",
+                        description: "Gérer les communiqués officiels",
+                    },
+                ],
+            },
+            {
+                label: "COMMUNICATION",
+                icon: "pi-comments",
+                items: [
+                    {
+                        label: "Messagerie",
+                        icon: "pi-envelope",
+                        to: "/cour-messagerie",
+                        badge:
+                            currentUser?.unread_messages_count > 0
+                                ? currentUser.unread_messages_count
                                 : null,
                         badgeClass: "danger",
                         description: "Messages internes",
@@ -129,87 +418,88 @@ const model = computed(() => {
                 ],
             },
         ];
-    } else {
-        return [
-            {
-                label: "ACCUEIL",
-                icon: "pi-home",
-                items: [
-                    {
-                        label: "Tableau de bord",
-                        icon: "pi-home",
-                        to: "/dashboard",
-                        description: "Vue personnalisée",
-                    },
-                ],
-            },
-            {
-                label: "MESSAGERIE",
-                icon: "pi-envelope",
-                badge:
-                    user?.unread_messages_count > 0
-                        ? user.unread_messages_count
-                        : null,
-                badgeClass: "danger",
-                items: [
-                    {
-                        label: "Boîte de réception",
-                        icon: "pi-inbox",
-                        to: "/candidat-messagerie",
-                        badge:
-                            user?.unread_messages_count > 0
-                                ? user.unread_messages_count
-                                : null,
-                        badgeClass: "danger",
-                        description: "Vos messages",
-                    },
-                ],
-            },
-            {
-                label: "MON COMPTE",
-                icon: "pi-user",
-                items: [
-                    {
-                        label: "Mon Profil",
-                        icon: "pi-user-edit",
-                        to: "/candidat-profil",
-                        description: "Informations personnelles",
-                    },
-                ],
-            },
-            {
-                label: "CANDIDATURES",
-                icon: "pi-file",
-                items: [
-                    {
-                        label: "Postuler",
-                        icon: "pi-send",
-                        to: "/candidat-postuler",
-                        badge: user?.available_concours || null,
-                        description: "Concours ouverts",
-                    },
-                    {
-                        label: "Mes Candidatures",
-                        icon: "pi-folder-open",
-                        to: "/candidat-dossier",
-                        description: "Suivi des dossiers",
-                    },
-                ],
-            },
-            {
-                label: "RÉSULTATS",
-                icon: "pi-verified",
-                items: [
-                    {
-                        label: "Mes Résultats",
-                        icon: "pi-verified",
-                        to: "/candidat-resultat",
-                        description: "Consulter vos résultats",
-                    },
-                ],
-            },
-        ];
     }
+
+    // ⭐ Menu pour OPERATOR (candidat)
+    return [
+        {
+            label: "ACCUEIL",
+            icon: "pi-home",
+            items: [
+                {
+                    label: "Tableau de bord",
+                    icon: "pi-home",
+                    to: "/dashboard",
+                    description: "Vue personnalisée",
+                },
+            ],
+        },
+        {
+            label: "MON COMPTE",
+            icon: "pi-user",
+            items: [
+                {
+                    label: "Mon Profil",
+                    icon: "pi-user-edit",
+                    to: "/candidat-profil",
+                    description: "Informations personnelles",
+                },
+            ],
+        },
+        {
+            label: "MESSAGERIE",
+            icon: "pi-envelope",
+            badge:
+                currentUser?.unread_messages_count > 0
+                    ? currentUser.unread_messages_count
+                    : null,
+            badgeClass: "danger",
+            items: [
+                {
+                    label: "Boîte de réception",
+                    icon: "pi-inbox",
+                    to: "/candidat-messagerie",
+                    badge:
+                        currentUser?.unread_messages_count > 0
+                            ? currentUser.unread_messages_count
+                            : null,
+                    badgeClass: "danger",
+                    description: "Vos messages",
+                },
+            ],
+        },
+        {
+            label: "CANDIDATURES",
+            icon: "pi-file",
+            items: [
+                {
+                    label: "Postuler",
+                    icon: "pi-send",
+                    to: "/candidat-postuler",
+                    badge: currentUser?.available_concours || null,
+                    description: "Concours ouverts",
+                },
+                {
+                    label: "Mes Candidatures",
+                    icon: "pi-folder-open",
+                    to: "/candidat-dossier",
+                    description: "Suivi des dossiers",
+                },
+            ],
+        },
+        {
+            label: "RÉSULTATS",
+            icon: "pi-verified",
+            items: [
+                {
+                    label: "Mes Résultats",
+                    icon: "pi-verified",
+                    to: "/candidat-resultat",
+                    description: "Consulter vos résultats",
+                },
+            ],
+        },
+    ];
 });
 
 // Menu filtré par recherche
@@ -234,22 +524,22 @@ const filteredModel = computed(() => {
 
 <template>
     <div class="layout-menu-container">
-        <!-- Profil utilisateur compact - réduit -->
+        <!-- Profil utilisateur compact -->
         <div class="user-profile-compact">
             <div class="user-avatar-small">
-                {{ userData?.name?.charAt(0) || "U" }}
+                {{ page.props.auth.user?.name?.charAt(0) || "U" }}
             </div>
             <div class="user-info-compact">
                 <div class="user-name-small">
-                    {{ userData?.name || "Utilisateur" }}
+                    {{ page.props.auth.user?.name || "Utilisateur" }}
                 </div>
                 <div class="user-email-small">
-                    {{ userData?.email?.split("@")[0] || "" }}
+                    {{ page.props.auth.user?.email?.split("@")[0] || "" }}
                 </div>
             </div>
         </div>
 
-        <!-- Barre de recherche compacte - réduite -->
+        <!-- Barre de recherche compacte -->
         <div class="search-compact" :class="{ expanded: isSearchVisible }">
             <button
                 class="search-toggle-small"
@@ -270,13 +560,12 @@ const filteredModel = computed(() => {
             />
         </div>
 
-        <!-- Menu principal - compacté -->
+        <!-- Menu principal -->
         <ul class="layout-menu-compact">
             <template
                 v-for="(section, sectionIndex) in filteredModel"
                 :key="section.label"
             >
-                <!-- Section header compact - réduit -->
                 <li class="menu-section-compact">
                     <div class="menu-section-header-compact">
                         <i
@@ -291,7 +580,6 @@ const filteredModel = computed(() => {
                             >{{ section.badge }}</span
                         >
                     </div>
-
                     <ul class="menu-section-items-compact">
                         <app-menu-item
                             v-for="(item, itemIndex) in section.items"
@@ -302,15 +590,11 @@ const filteredModel = computed(() => {
                         />
                     </ul>
                 </li>
-
-                <!-- Séparateur réduit -->
                 <li
                     v-if="sectionIndex < filteredModel.length - 1"
                     class="menu-separator-thin"
                 ></li>
             </template>
-
-            <!-- Message si aucun résultat -->
             <li v-if="filteredModel.length === 0" class="no-results-compact">
                 <i class="pi pi-search"></i>
                 <p>Aucun résultat</p>
@@ -329,7 +613,6 @@ const filteredModel = computed(() => {
     padding: 8px 6px;
 }
 
-/* Profil utilisateur compact - réduit */
 .user-profile-compact {
     display: flex;
     align-items: center;
@@ -376,7 +659,6 @@ const filteredModel = computed(() => {
     }
 }
 
-/* Recherche compacte - réduite */
 .search-compact {
     margin: 0 2px 8px 2px;
     position: relative;
@@ -424,7 +706,6 @@ const filteredModel = computed(() => {
     }
 }
 
-/* Menu compact - réduit */
 .layout-menu-compact {
     list-style: none;
     padding: 0;
@@ -432,7 +713,6 @@ const filteredModel = computed(() => {
     flex: 1;
     overflow-y: auto;
 
-    /* Scrollbar fine */
     &::-webkit-scrollbar {
         width: 2px;
     }

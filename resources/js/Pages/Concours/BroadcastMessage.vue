@@ -14,6 +14,7 @@ import Tag from "primevue/tag";
 import Toast from "primevue/toast";
 import Dialog from "primevue/dialog";
 import ProgressSpinner from "primevue/progressspinner";
+import Message from "primevue/message";
 import { useToast } from "primevue/usetoast";
 import axios from "axios";
 
@@ -21,9 +22,14 @@ const props = defineProps({
     concours: Array,
     broadcasts: Object,
     flash: Object,
+    user_role: String,
+    is_superadmin: Boolean,
+    is_gerant: Boolean,
+    is_admin: Boolean,
 });
 
 const toast = useToast();
+
 const form = useForm({
     concour_id: null,
     subject: "",
@@ -53,7 +59,7 @@ const previewMessage = async () => {
         });
         return;
     }
-    
+
     if (!form.message || form.message.trim().length < 3) {
         toast.add({
             severity: "warn",
@@ -90,24 +96,24 @@ const confirmSend = () => {
 const sendBroadcast = () => {
     sending.value = true;
     showConfirmDialog.value = false;
-    
+
     form.post(route("broadcast.send"), {
         preserveScroll: true,
         onSuccess: () => {
             sending.value = false;
             form.reset();
             showPreview.value = false;
-            
+
             toast.add({
                 severity: "success",
                 summary: "Diffusion envoyée !",
-                detail: `Message envoyé avec succès à ${previewData.value?.candidats_count || 'tous'} candidats`,
+                detail: "Message envoyé avec succès",
                 life: 5000,
                 closable: true,
             });
-            
+
             setTimeout(() => {
-                router.reload({ only: ['broadcasts'] });
+                router.reload({ only: ["broadcasts"] });
             }, 1500);
         },
         onError: (errors) => {
@@ -135,17 +141,43 @@ const resetForm = () => {
         <Toast position="top-right" />
 
         <div class="broadcast-page">
-            <!-- En-tête harmonisé avec les autres pages -->
+            <!-- En-tête -->
             <div class="page-header-card">
                 <div class="page-header-content">
                     <i class="pi pi-megaphone page-header-icon"></i>
                     <div class="page-header-text">
                         <h1 class="page-header-title">Diffusion de messages</h1>
                         <p class="page-header-subtitle">
-                            Envoyez un message à tous les candidats d'un concours spécifique
+                            Envoyez un message à tous les candidats d'un
+                            concours spécifique
                         </p>
                     </div>
                 </div>
+            </div>
+
+            <!-- Messages d'information selon le rôle -->
+            <div v-if="is_admin" class="info-message mb-4">
+                <Message severity="info" :closable="false">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-info-circle"></i>
+                        <span
+                            >Vous pouvez envoyer des messages uniquement aux
+                            concours où vous êtes assigné.</span
+                        >
+                    </div>
+                </Message>
+            </div>
+
+            <div v-if="is_gerant" class="info-message mb-4">
+                <Message severity="success" :closable="false">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-check-circle"></i>
+                        <span
+                            >Vous pouvez envoyer des messages à tous les
+                            concours de votre service.</span
+                        >
+                    </div>
+                </Message>
             </div>
 
             <div class="broadcast-grid">
@@ -155,14 +187,17 @@ const resetForm = () => {
                         <template #title>
                             <div class="card-title-wrapper">
                                 <i class="pi pi-send card-title-icon"></i>
-                                <span class="card-title-text">Nouvelle diffusion</span>
+                                <span class="card-title-text"
+                                    >Nouvelle diffusion</span
+                                >
                             </div>
                         </template>
                         <template #content>
                             <div class="form-container">
                                 <div class="form-field">
                                     <label class="form-label">
-                                        Concours <span class="required-star">*</span>
+                                        Concours
+                                        <span class="required-star">*</span>
                                     </label>
                                     <Select
                                         v-model="form.concour_id"
@@ -170,16 +205,23 @@ const resetForm = () => {
                                         optionLabel="intitule"
                                         optionValue="id"
                                         placeholder="Choisir un concours..."
-                                        :class="{ 'p-invalid': form.errors.concour_id }"
+                                        :class="{
+                                            'p-invalid': form.errors.concour_id,
+                                        }"
                                         class="w-full"
                                     />
-                                    <small class="p-error" v-if="form.errors.concour_id">
+                                    <small
+                                        class="p-error"
+                                        v-if="form.errors.concour_id"
+                                    >
                                         {{ form.errors.concour_id }}
                                     </small>
                                 </div>
 
                                 <div class="form-field">
-                                    <label class="form-label">Objet (optionnel)</label>
+                                    <label class="form-label"
+                                        >Objet (optionnel)</label
+                                    >
                                     <InputText
                                         v-model="form.subject"
                                         placeholder="Ex: Information importante concernant le concours"
@@ -189,20 +231,27 @@ const resetForm = () => {
 
                                 <div class="form-field">
                                     <label class="form-label">
-                                        Message <span class="required-star">*</span>
+                                        Message
+                                        <span class="required-star">*</span>
                                     </label>
                                     <Textarea
                                         v-model="form.message"
                                         rows="6"
                                         placeholder="Écrivez votre message ici..."
-                                        :class="{ 'p-invalid': form.errors.message }"
+                                        :class="{
+                                            'p-invalid': form.errors.message,
+                                        }"
                                         class="w-full"
                                     />
                                     <small class="form-hint">
                                         <i class="pi pi-info-circle"></i>
-                                        Ce message sera envoyé à tous les candidats de ce concours
+                                        Ce message sera envoyé à tous les
+                                        candidats de ce concours
                                     </small>
-                                    <small class="p-error" v-if="form.errors.message">
+                                    <small
+                                        class="p-error"
+                                        v-if="form.errors.message"
+                                    >
                                         {{ form.errors.message }}
                                     </small>
                                 </div>
@@ -213,14 +262,20 @@ const resetForm = () => {
                                         icon="pi pi-eye"
                                         class="p-button-outlined preview-button"
                                         @click="previewMessage"
-                                        :disabled="!form.concour_id || !form.message"
+                                        :disabled="
+                                            !form.concour_id || !form.message
+                                        "
                                     />
                                     <Button
                                         label="Envoyer"
                                         icon="pi pi-send"
                                         class="p-button-primary send-button"
                                         @click="confirmSend"
-                                        :disabled="!form.concour_id || !form.message || sending"
+                                        :disabled="
+                                            !form.concour_id ||
+                                            !form.message ||
+                                            sending
+                                        "
                                     />
                                 </div>
                             </div>
@@ -228,27 +283,27 @@ const resetForm = () => {
                     </Card>
                 </div>
 
-                <!-- Prévisualisation -->
+                <!-- ⭐ Prévisualisation - sans nombre de candidats -->
                 <div class="broadcast-preview-col" v-if="showPreview">
                     <Card class="broadcast-card preview-card-animate">
                         <template #title>
                             <div class="card-title-wrapper">
                                 <i class="pi pi-eye card-title-icon"></i>
-                                <span class="card-title-text">Prévisualisation</span>
+                                <span class="card-title-text"
+                                    >Prévisualisation</span
+                                >
                             </div>
                         </template>
-                        <template #content">
+                        <template #content>
                             <div v-if="previewData">
                                 <div class="preview-info-box">
                                     <div class="preview-info-row">
-                                        <span class="preview-info-label">Concours :</span>
-                                        <span class="preview-info-value">{{ previewData.concour }}</span>
-                                    </div>
-                                    <div class="preview-info-row">
-                                        <span class="preview-info-label">Destinataires :</span>
-                                        <span class="preview-info-value preview-info-highlight">
-                                            {{ previewData.candidats_count }} candidat(s)
-                                        </span>
+                                        <span class="preview-info-label"
+                                            >Concours :</span
+                                        >
+                                        <span class="preview-info-value">{{
+                                            previewData.concour
+                                        }}</span>
                                     </div>
                                 </div>
 
@@ -256,7 +311,9 @@ const resetForm = () => {
 
                                 <div class="preview-message-box">
                                     <div class="preview-message-subject">
-                                        {{ previewData.subject || "Sans objet" }}
+                                        {{
+                                            previewData.subject || "Sans objet"
+                                        }}
                                     </div>
                                     <div class="preview-message-content">
                                         {{ previewData.message }}
@@ -284,17 +341,19 @@ const resetForm = () => {
                     </Card>
                 </div>
 
-                <!-- Historique des diffusions - Version responsive -->
+                <!-- Historique des diffusions -->
                 <div class="broadcast-history-col">
                     <Card class="broadcast-card">
                         <template #title>
                             <div class="card-title-wrapper">
                                 <i class="pi pi-history card-title-icon"></i>
-                                <span class="card-title-text">Historique des diffusions</span>
+                                <span class="card-title-text"
+                                    >Historique des diffusions</span
+                                >
                             </div>
                         </template>
                         <template #content>
-                            <!-- Version Desktop - Tableau -->
+                            <!-- Version Desktop -->
                             <div class="history-desktop">
                                 <DataTable
                                     :value="broadcasts.data"
@@ -303,78 +362,146 @@ const resetForm = () => {
                                     class="broadcast-table"
                                     responsiveLayout="scroll"
                                 >
-                                    <Column field="created_at" header="Date" :sortable="true">
+                                    <Column
+                                        field="created_at"
+                                        header="Date"
+                                        :sortable="true"
+                                    >
                                         <template #body="{ data }">
-                                            <span class="date-cell">{{ formatDate(data.created_at) }}</span>
+                                            <span class="date-cell">{{
+                                                formatDate(data.created_at)
+                                            }}</span>
                                         </template>
                                     </Column>
-                                    <Column field="concour.intitule" header="Concours" :sortable="true">
+                                    <Column
+                                        field="concour.intitule"
+                                        header="Concours"
+                                        :sortable="true"
+                                    >
                                         <template #body="{ data }">
-                                            <span class="concour-cell">{{ data.concour?.intitule || '-' }}</span>
+                                            <span class="concour-cell">{{
+                                                data.concour?.intitule || "-"
+                                            }}</span>
                                         </template>
                                     </Column>
-                                    <Column field="broadcast_subject" header="Objet">
+                                    <Column
+                                        field="broadcast_subject"
+                                        header="Objet"
+                                    >
                                         <template #body="{ data }">
-                                            <span class="subject-cell">{{ data.broadcast_subject || data.objet || '-' }}</span>
+                                            <span class="subject-cell">{{
+                                                data.broadcast_subject ||
+                                                data.objet ||
+                                                "-"
+                                            }}</span>
                                         </template>
                                     </Column>
                                     <Column field="texte" header="Message">
                                         <template #body="{ data }">
-                                            <span class="message-cell">{{ data.texte.substring(0, 50) }}...</span>
+                                            <span class="message-cell"
+                                                >{{
+                                                    data.texte.substring(0, 50)
+                                                }}...</span
+                                            >
                                         </template>
                                     </Column>
-                                    <Column field="emetteur.name" header="Envoyé par" />
+                                    <Column
+                                        field="emetteur.name"
+                                        header="Envoyé par"
+                                    />
                                     <Column header="Statut">
                                         <template #body>
-                                            <Tag value="Envoyé" severity="success" icon="pi pi-check" />
+                                            <Tag
+                                                value="Envoyé"
+                                                severity="success"
+                                                icon="pi pi-check"
+                                            />
                                         </template>
                                     </Column>
                                 </DataTable>
                             </div>
 
-                            <!-- Version Mobile - Cartes -->
+                            <!-- Version Mobile -->
                             <div class="history-mobile">
-                                <div v-if="broadcasts.data?.length === 0" class="empty-history">
+                                <div
+                                    v-if="broadcasts.data?.length === 0"
+                                    class="empty-history"
+                                >
                                     <i class="pi pi-inbox"></i>
                                     <p>Aucune diffusion effectuée</p>
                                 </div>
-                                <div v-for="item in broadcasts.data" :key="item.id" class="history-card-item">
+                                <div
+                                    v-for="item in broadcasts.data"
+                                    :key="item.id"
+                                    class="history-card-item"
+                                >
                                     <div class="history-card-header">
                                         <div class="history-card-date">
                                             <i class="pi pi-calendar"></i>
-                                            <span>{{ formatDate(item.created_at) }}</span>
+                                            <span>{{
+                                                formatDate(item.created_at)
+                                            }}</span>
                                         </div>
-                                        <Tag value="Envoyé" severity="success" size="small" />
+                                        <Tag
+                                            value="Envoyé"
+                                            severity="success"
+                                            size="small"
+                                        />
                                     </div>
                                     <div class="history-card-body">
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Concours :</span>
-                                            <span class="history-card-value">{{ item.concour?.intitule || '-' }}</span>
+                                            <span class="history-card-label"
+                                                >Concours :</span
+                                            >
+                                            <span class="history-card-value">{{
+                                                item.concour?.intitule || "-"
+                                            }}</span>
                                         </div>
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Objet :</span>
-                                            <span class="history-card-value">{{ item.broadcast_subject || item.objet || '-' }}</span>
+                                            <span class="history-card-label"
+                                                >Objet :</span
+                                            >
+                                            <span class="history-card-value">{{
+                                                item.broadcast_subject ||
+                                                item.objet ||
+                                                "-"
+                                            }}</span>
                                         </div>
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Message :</span>
-                                            <span class="history-card-value message-preview-mobile">{{ item.texte }}</span>
+                                            <span class="history-card-label"
+                                                >Message :</span
+                                            >
+                                            <span
+                                                class="history-card-value message-preview-mobile"
+                                                >{{ item.texte }}</span
+                                            >
                                         </div>
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Envoyé par :</span>
-                                            <span class="history-card-value">{{ item.emetteur?.name || '-' }}</span>
+                                            <span class="history-card-label"
+                                                >Envoyé par :</span
+                                            >
+                                            <span class="history-card-value">{{
+                                                item.emetteur?.name || "-"
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="history-pagination-mobile" v-if="broadcasts.last_page > 1">
-                                    <Button 
-                                        icon="pi pi-chevron-left" 
-                                        class="p-button-text" 
+                                <div
+                                    class="history-pagination-mobile"
+                                    v-if="broadcasts.last_page > 1"
+                                >
+                                    <Button
+                                        icon="pi pi-chevron-left"
+                                        class="p-button-text"
                                         :disabled="!broadcasts.prev_page_url"
                                     />
-                                    <span>Page {{ broadcasts.current_page }} / {{ broadcasts.last_page }}</span>
-                                    <Button 
-                                        icon="pi pi-chevron-right" 
-                                        class="p-button-text" 
+                                    <span
+                                        >Page {{ broadcasts.current_page }} /
+                                        {{ broadcasts.last_page }}</span
+                                    >
+                                    <Button
+                                        icon="pi pi-chevron-right"
+                                        class="p-button-text"
                                         :disabled="!broadcasts.next_page_url"
                                     />
                                 </div>
@@ -385,7 +512,7 @@ const resetForm = () => {
             </div>
         </div>
 
-        <!-- Modal de confirmation -->
+        <!-- ⭐ Modal de confirmation - sans nombre de candidats -->
         <Dialog
             v-model:visible="showConfirmDialog"
             header="Confirmation d'envoi"
@@ -400,12 +527,18 @@ const resetForm = () => {
                     <i class="pi pi-question-circle"></i>
                 </div>
                 <div class="confirm-text">
-                    <p>Vous êtes sur le point d'envoyer ce message à :</p>
+                    <p>
+                        Vous êtes sur le point d'envoyer ce message à tous les
+                        candidats du concours :
+                    </p>
                     <div class="confirm-details">
-                        <strong>{{ previewData?.concour || 'ce concours' }}</strong>
-                        <span class="confirm-badge">{{ previewData?.candidats_count || 0 }} candidat(s)</span>
+                        <strong>{{
+                            previewData?.concour || "ce concours"
+                        }}</strong>
                     </div>
-                    <p class="confirm-warning">Cette action est irréversible.</p>
+                    <p class="confirm-warning">
+                        Cette action est irréversible.
+                    </p>
                 </div>
             </div>
             <template #footer>
@@ -440,9 +573,13 @@ const resetForm = () => {
     padding: 1rem;
 }
 
-/* En-tête harmonisé */
+/* En-tête */
 .page-header-card {
-    background: linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%);
+    background: linear-gradient(
+        135deg,
+        rgb(16, 185, 129) 0%,
+        rgb(5, 150, 105) 100%
+    );
     border-radius: 1rem;
     margin-bottom: 1.5rem;
     padding: 1.25rem 1.5rem;
@@ -476,6 +613,11 @@ const resetForm = () => {
     font-size: 0.8rem;
     margin: 0.25rem 0 0;
     opacity: 0.9;
+}
+
+/* Messages d'information */
+.info-message {
+    margin-bottom: 1rem;
 }
 
 /* Grille responsive */
@@ -757,7 +899,7 @@ const resetForm = () => {
     border-radius: 0.5rem;
     margin: 0.5rem 0;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -821,25 +963,25 @@ const resetForm = () => {
     .broadcast-page {
         padding: 1.5rem;
     }
-    
+
     .page-header-card {
         padding: 1.5rem 2rem;
     }
-    
+
     .page-header-title {
         font-size: 1.5rem;
     }
-    
+
     .page-header-subtitle {
         font-size: 0.9rem;
     }
-    
+
     .broadcast-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1.5rem;
     }
-    
+
     .broadcast-history-col {
         grid-column: span 2;
     }
@@ -849,7 +991,7 @@ const resetForm = () => {
     .broadcast-grid {
         grid-template-columns: 1fr 1fr;
     }
-    
+
     .broadcast-history-col {
         grid-column: span 2;
     }
@@ -859,30 +1001,30 @@ const resetForm = () => {
     .history-desktop {
         display: none;
     }
-    
+
     .history-mobile {
         display: block;
     }
-    
+
     .form-actions {
         flex-direction: column;
     }
-    
+
     .preview-button,
     .send-button {
         width: 100%;
     }
-    
+
     .preview-info-row {
         flex-direction: column;
         gap: 0.25rem;
     }
-    
+
     .confirm-content {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .confirm-details {
         flex-direction: column;
     }
@@ -892,25 +1034,25 @@ const resetForm = () => {
     .page-header-card {
         padding: 1rem;
     }
-    
+
     .page-header-icon {
         font-size: 1.5rem;
         padding: 0.5rem;
     }
-    
+
     .page-header-title {
         font-size: 1rem;
     }
-    
+
     .page-header-subtitle {
         font-size: 0.7rem;
     }
-    
+
     .history-card-label {
         width: 70px;
         font-size: 0.75rem;
     }
-    
+
     .history-card-value {
         font-size: 0.75rem;
     }

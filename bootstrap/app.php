@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
+use App\Http\Middleware\SuperAdminMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             // AJOUTEZ CETTE LIGNE (ou modifiez 'concour') :
         'adminMiddleware' => \App\Http\Middleware\AdminMiddleware::class,
+        'superAdminMiddleware' => SuperAdminMiddleware::class,
             
         ]);
     })
