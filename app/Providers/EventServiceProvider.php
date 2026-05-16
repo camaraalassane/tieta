@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use App\Listeners\LogSlowQuery;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,11 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+
+        // ⭐ AJOUTÉ : Écouter les requêtes SQL exécutées
+        QueryExecuted::class => [
+            LogSlowQuery::class,
         ],
     ];
 

@@ -23,10 +23,12 @@ namespace App\Models{
  * @property string $nationalite
  * @property string|null $resultat
  * @property string|null $motif
+ * @property int|null $specialite_id
  * @property-read \App\Models\Concour $concour
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CandidaturePiece> $piecesChargees
  * @property-read int|null $pieces_chargees_count
  * @property-read \App\Models\Profil|null $profil
+ * @property-read \App\Models\ConcourSpecialite|null $specialite
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature query()
@@ -39,6 +41,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereNumDossier($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereProfilId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereResultat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereSpecialiteId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Candidature whereUpdatedAt($value)
  */
 	class Candidature extends \Eloquent {}
@@ -82,6 +85,7 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property string $statut
+ * @property bool $has_specialites
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $admins
  * @property-read int|null $admins_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Candidature> $candidatures
@@ -91,6 +95,8 @@ namespace App\Models{
  * @property-read int|null $pieces_complementaires_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Resultat> $resultats
  * @property-read int|null $resultats_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ConcourSpecialite> $specialites
+ * @property-read int|null $specialites_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour query()
@@ -100,6 +106,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereDateLimite($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereDiplomeMin($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereHasSpecialites($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereIntitule($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Concour whereOrganisateur($value)
@@ -133,6 +140,36 @@ namespace App\Models{
 namespace App\Models{
 /**
  * @property int $id
+ * @property int $concour_id
+ * @property string $nom
+ * @property string $slug
+ * @property string|null $description
+ * @property int|null $places_disponibles
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Candidature> $candidatures
+ * @property-read int|null $candidatures_count
+ * @property-read \App\Models\Concour $concour
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereConcourId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereNom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite wherePlacesDisponibles($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereSlug($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ConcourSpecialite whereUpdatedAt($value)
+ */
+	class ConcourSpecialite extends \Eloquent {}
+}
+
+namespace App\Models{
+/**
+ * @property int $id
  * @property int $emetteur_id
  * @property int $destinataire_id
  * @property string $objet
@@ -141,17 +178,21 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property int $concour_id
+ * @property bool $is_broadcast
+ * @property string|null $broadcast_subject
  * @property-read \App\Models\Concour $concour
  * @property-read \App\Models\User $destinataire
  * @property-read \App\Models\User $emetteur
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereBroadcastSubject($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereConcourId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereDestinataireId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereEmetteurId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereIsBroadcast($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereLu($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereObjet($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Message whereTexte($value)

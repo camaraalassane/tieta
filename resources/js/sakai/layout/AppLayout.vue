@@ -1,16 +1,17 @@
 <script setup>
 import { useLayout } from "@/sakai/layout/composables/layout";
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { Head } from "@inertiajs/vue3";
 import AppFooter from "./AppFooter.vue";
 import AppSidebar from "./AppSidebar.vue";
 import AppTopbar from "./AppTopbar.vue";
+import Message from "primevue/message";
 
 const { layoutConfig, layoutState, isSidebarActive, resetMenu } = useLayout();
 
 const outsideClickListener = ref(null);
 const isMobile = ref(window.innerWidth < 768);
 
-// Gestion du redimensionnement
 const handleResize = () => {
     isMobile.value = window.innerWidth < 768;
 };
@@ -46,7 +47,6 @@ const containerClass = computed(() => {
 
 const bindOutsideClickListener = () => {
     if (!outsideClickListener.value) {
-        // ⭐ Utiliser setTimeout pour éviter que le clic qui a ouvert le menu ne le ferme
         setTimeout(() => {
             outsideClickListener.value = (event) => {
                 if (isOutsideClicked(event)) {
@@ -68,19 +68,16 @@ const unbindOutsideClickListener = () => {
 const isOutsideClicked = (event) => {
     const sidebarEl = document.querySelector(".layout-sidebar");
     const topbarEl = document.querySelector(".layout-menu-button");
-    const mobileMenuEl = document.querySelector(".fixed.top-0.left-0.h-full"); // Le menu mobile
+    const mobileMenuEl = document.querySelector(".fixed.top-0.left-0.h-full");
 
-    // Vérifier si on clique sur le bouton menu mobile
     const isMenuButton =
         topbarEl?.contains(event.target) ||
         event.target.closest(".lg\\:hidden.w-8");
 
-    // Si on clique sur le bouton menu, ne pas fermer
     if (isMenuButton) {
         return false;
     }
 
-    // Vérifier si on clique en dehors du menu
     const isOutsideSidebar = !sidebarEl?.contains(event.target);
     const isOutsideMobileMenu = !mobileMenuEl?.contains(event.target);
 
@@ -89,11 +86,45 @@ const isOutsideClicked = (event) => {
 </script>
 
 <template>
+    <!-- ⭐ Favicon et titre par défaut -->
+    <Head>
+        <link rel="icon" type="image/png" href="/Images/Fama.png" />
+        <title>FAMa - Recrutement</title>
+    </Head>
+
     <div class="layout-wrapper" :class="containerClass">
         <app-topbar></app-topbar>
         <app-sidebar></app-sidebar>
         <div class="layout-main-container">
             <div class="layout-main">
+                <!-- ⭐ Messages flash -->
+                <Message
+                    v-if="$page.props.flash?.error"
+                    severity="error"
+                    :closable="true"
+                    class="mx-4 mt-4"
+                >
+                    {{ $page.props.flash.error }}
+                </Message>
+
+                <Message
+                    v-if="$page.props.flash?.info"
+                    severity="info"
+                    :closable="true"
+                    class="mx-4 mt-4"
+                >
+                    {{ $page.props.flash.info }}
+                </Message>
+
+                <Message
+                    v-if="$page.props.flash?.success"
+                    severity="success"
+                    :closable="true"
+                    class="mx-4 mt-4"
+                >
+                    {{ $page.props.flash.success }}
+                </Message>
+
                 <slot></slot>
             </div>
             <app-footer></app-footer>
@@ -102,3 +133,37 @@ const isOutsideClicked = (event) => {
     </div>
     <Toast />
 </template>
+
+<style scoped>
+/* ============================================ */
+/* ⭐ MODE NUIT - APP LAYOUT */
+/* ============================================ */
+
+/* Fond principal en mode nuit */
+.dark .layout-main-container {
+    background: var(--surface-950);
+}
+
+.dark .layout-main {
+    background: var(--surface-950);
+}
+
+/* Mask overlay en mode nuit */
+.dark .layout-mask {
+    background: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Animation */
+@keyframes fadein {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fadein {
+    animation: fadein 0.2s ease-out;
+}
+</style>

@@ -1,10 +1,12 @@
 <?php
+// app/Models/Traitement.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class Traitement extends Model
 {
@@ -13,10 +15,11 @@ class Traitement extends Model
     protected $fillable = [
         'id_concours',
         'communique',
+        'fichier', // ⭐ Ajouter le champ fichier
         'communique_titre',
         'communique_published_at',
         'communique_is_active',
-        'date_limite' // Ajouter cette ligne
+        'date_limite'
     ];
 
     protected $casts = [
@@ -24,6 +27,15 @@ class Traitement extends Model
         'communique_is_active' => 'boolean',
         'date_limite' => 'date',
     ];
+
+    // Accesseur pour l'URL du fichier
+    public function getFichierUrlAttribute()
+    {
+        if ($this->fichier && Storage::disk('public')->exists($this->fichier)) {
+            return Storage::url($this->fichier);
+        }
+        return null;
+    }
 
     // Relation avec Concour
     public function concour()

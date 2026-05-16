@@ -51,7 +51,7 @@ const showPasswordConfirmation = ref(false);
                             class="bg-white/20 backdrop-blur-sm p-3 rounded-2xl"
                         ></div>
                         <span class="text-2xl font-black tracking-tighter"
-                            >Recrutement DTTIA</span
+                            >Recrutement FAMa</span
                         >
                     </div>
 
@@ -73,7 +73,7 @@ const showPasswordConfirmation = ref(false);
                                     class="bg-white dark:bg-gray-800 rounded-2xl p-2"
                                 >
                                     <img
-                                        src="/Images/DTTIA.jpeg"
+                                        src="/Images/Fama.png"
                                         alt="DTTIA"
                                         class="w-64 h-64 object-cover rounded-2xl shadow-2xl transform group-hover:scale-105 transition-transform duration-500"
                                     />
@@ -95,7 +95,7 @@ const showPasswordConfirmation = ref(false);
                             </h2>
                             <p class="text-emerald-100 text-lg max-w-md">
                                 Plateforme officielle des concours de
-                                recrutement DTTIA
+                                recrutement FAMa
                             </p>
                         </div>
                     </div>
@@ -131,7 +131,7 @@ const showPasswordConfirmation = ref(false);
                                     class="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-30"
                                 ></div>
                                 <img
-                                    src="/Images/DTTIA.jpeg"
+                                    src="/Images/Fama.png"
                                     alt="DTTIA"
                                     class="h-24 w-auto relative rounded-2xl shadow-xl border-4 border-white dark:border-gray-800"
                                 />
@@ -143,7 +143,7 @@ const showPasswordConfirmation = ref(false);
                             Créer un compte
                         </h1>
                         <p class="text-gray-500 dark:text-gray-400">
-                            Rejoignez la plateforme de Recrutement DTTIA
+                            Rejoignez la plateforme de Recrutement FAMa
                         </p>
                     </div>
 
@@ -155,7 +155,7 @@ const showPasswordConfirmation = ref(false);
                             <h2
                                 class="text-2xl font-bold text-gray-900 dark:text-white mb-2"
                             >
-                                S'inscription
+                                S'inscrire
                             </h2>
                             <p class="text-gray-500 dark:text-gray-400">
                                 Remplissez vos informations pour créer un compte

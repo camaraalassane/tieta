@@ -3,13 +3,18 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Désactiver la traduction automatique -->
+        <!-- Désactiver la traduction automatique -->
         <meta name="google" content="notranslate">
         <meta name="robots" content="noindex, nofollow">
-        <title inertia>{{ config('app.name', 'Recrutement DTTIA') }}</title>
+        
+        <!-- ⭐ Favicon -->
+        <link rel="icon" type="image/png" href="/Images/Fama.png">
+        <link rel="shortcut icon" type="image/png" href="/Images/Fama.png">
+        
+        <!-- ⭐ Titre -->
+        <title inertia>{{ config('app.name', 'FAMa - Recrutement') }}</title>
 
         <!-- Fonts -->
-        
         <link href="https://fonts.cdnfonts.com/css/lato" rel="stylesheet">
 
         <!-- Scripts -->

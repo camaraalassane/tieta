@@ -14,26 +14,66 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Inertia\Inertia;
+use Illuminate\Routing\Controller;
 
 class CandidatPostulerController extends Controller
 {
-    public function index()
+    /**
+     * ⭐ Constructeur avec middleware pour restreindre aux candidats
+     */
+    public function __construct()
     {
-        $concours = Concour::with('piecesComplementaires')
+        $this->middleware(function (Request $request, $next) {
+            /** @var User|null $user */
+            $user = Auth::user();
+
+            if ($user && !$user->hasRole('operator')) {
+                return redirect()->route('dashboard')
+                    ->with('error', 'Cette page est réservée aux candidats. Connectez-vous avec un compte candidat pour postuler.');
+            }
+
+            return $next($request);
+        });
+    }
+
+
+
+    public function index(Request $request)
+    {
+        // ⭐ 1. D'ABORD : Mettre à jour les concours expirés AVANT de les récupérer
+        $hier = now()->subDay()->toDateString(); //
+
+        Concour::whereDate('date_limite', '<=', $hier)
             ->where('statut', 'Actif')
+            ->update(['statut' => 'Inactif']);
+
+        // ⭐ Récupérer l'ID du concours présélectionné (depuis l'URL)
+        $preselectedConcourId = $request->query('concour_id');
+
+        // ⭐ 2. ENSUITE : Récupérer uniquement les concours actifs non expirés
+        $concours = Concour::with(['piecesComplementaires', 'specialites'])
+            ->where('statut', 'Actif')
+            ->where('date_limite', '>=', now()) // ⭐ Double vérification
             ->get()
             ->map(function ($concour) {
                 return [
-                    'id'             => $concour->id,
-                    'intitule'       => $concour->intitule,
-                    'date_cloture'   => $concour->date_limite,
-                    'age'            => $concour->age,
-                    'diplome_requis' => $concour->diplome_requis,
-                    'pieces'         => $concour->piecesComplementaires->map(fn($p) => [
+                    'id'              => $concour->id,
+                    'intitule'        => $concour->intitule,
+                    'date_cloture'    => $concour->date_limite,
+                    'age'             => $concour->age,
+                    'diplome_requis'  => $concour->diplome_min,
+                    'has_specialites' => (bool) $concour->has_specialites,
+                    'specialites'     => $concour->specialites->map(fn($s) => [
+                        'id'                => $s->id,
+                        'nom'               => $s->nom,
+                        'slug'              => $s->slug,
+                        'places_disponibles' => $s->places_disponibles,
+                    ])->values(),
+                    'pieces'          => $concour->piecesComplementaires->map(fn($p) => [
                         'id'           => $p->id,
                         'nom_document' => $p->nom_document,
                         'slug'         => $p->slug,
-                        'is_required'  => (bool)$p->is_required
+                        'is_required'  => (bool) $p->is_required
                     ]),
                 ];
             });
@@ -41,12 +81,14 @@ class CandidatPostulerController extends Controller
         return Inertia::render('Candidat/postuler', [
             'user'     => Auth::user(),
             'concours' => $concours,
+            'preselectedConcourId' => $preselectedConcourId,
         ]);
     }
 
     public function uploadTemp(Request $request)
     {
-        $request->validate(['file' => 'required|file|max:5120']);
+        // ⭐ 1 Mo max pour l'upload temporaire
+        $request->validate(['file' => 'required|file|max:1024']);
         $path = $request->file('file')->store('temp', 'public');
         return response()->json([
             'path' => $path,
@@ -65,28 +107,39 @@ class CandidatPostulerController extends Controller
         $birthDate = Carbon::parse($dateNaissance);
         $currentYear = Carbon::now()->year;
 
-        // Calcul de l'âge au 31 décembre de l'année en cours
+        // Date de référence : 31 décembre de l'année en cours
         $referenceDate = Carbon::create($currentYear, 12, 31);
-        $ageAtReference = $birthDate->diffInYears($referenceDate);
+
+        // Calcul de la différence précise
+        $diff = $birthDate->diff($referenceDate);
+        $ageAns = $diff->y;
+        $ageMois = $diff->m;
+        $ageJours = $diff->d;
+
+        // Construction de la chaîne de caractères lisible
+        $ageFormate = "{$ageAns} ans";
+        if ($ageMois > 0) $ageFormate .= ", {$ageMois} mois";
+        if ($ageJours > 0) $ageFormate .= " et {$ageJours} jours";
 
         // Vérification de l'âge minimum (18 ans)
-        if ($ageAtReference < 18) {
+        if ($ageAns < 18) {
             return [
                 'valid' => false,
-                'error' => "Désolé, vous devez avoir au moins 18 ans pour postuler (calculé au 31 décembre $currentYear). Votre âge serait de $ageAtReference ans à cette date."
+                'error' => "Désolé, vous devez avoir au moins 18 ans pour postuler. Votre âge sera de $ageFormate au 31 décembre $currentYear."
             ];
         }
 
         // Vérification de l'âge maximum du concours
-        if ($concour->age && $ageAtReference > $concour->age) {
+        if ($concour->age && $ageAns > $concour->age) {
             return [
                 'valid' => false,
-                'error' => "Désolé, votre âge ($ageAtReference ans au 31 décembre $currentYear) dépasse la limite de {$concour->age} ans pour ce concours."
+                'error' => "Désolé, votre âge ($ageFormate au 31 décembre $currentYear) dépasse la limite de {$concour->age} ans autorisée."
             ];
         }
 
         return ['valid' => true];
     }
+
 
     /**
      * Vérifier si l'heure de dépôt est autorisée (8h00 - 16h00)
@@ -114,14 +167,22 @@ class CandidatPostulerController extends Controller
             $user = Auth::user();
             if (!$user) return redirect()->route('login');
 
-            // 0. VÉRIFICATION DE L'HEURE DE DÉPÔT
-            $hourCheck = $this->checkHour();
-            if (!$hourCheck['valid']) {
-                return back()->withErrors(['error' => $hourCheck['error']]);
-            }
+
 
             $profil = $user->profil;
             $concour = Concour::with('piecesComplementaires')->findOrFail($request->concour_id);
+
+            // Vérification de la spécialité si le concours en a
+            if ($concour->has_specialites) {
+                if (!$request->specialite_id) {
+                    return back()->withErrors(['error' => 'Veuillez sélectionner une spécialité.']);
+                }
+
+                $specialite = $concour->specialites()->find($request->specialite_id);
+                if (!$specialite) {
+                    return back()->withErrors(['error' => 'Spécialité invalide.']);
+                }
+            }
 
             // 1. VÉRIFICATION DU PROFIL COMPLET
             if (!$profil) {
@@ -137,6 +198,10 @@ class CandidatPostulerController extends Controller
                 'region' => 'Région',
                 'carte_identite' => 'Carte d\'identité (CNI)',
                 'photo_identite' => 'Photo d\'identité',
+                'nina' => 'Numéro NINA',
+                'prenom_pere' => 'Prénom du père',
+                'prenom_mere' => 'Prénom de la mère',
+                'nom_mere' => 'Nom de la mère',
             ];
 
             $missing = [];
@@ -183,8 +248,39 @@ class CandidatPostulerController extends Controller
                 }
             }
 
-            // 6. VÉRIFICATION DES PIÈCES COMPLÉMENTAIRES
+            // ⭐ 6. VÉRIFICATION DE LA TAILLE DES FICHIERS (1 Mo max)
+            $maxFileSize = 1 * 1024 * 1024; // 1 Mo
+
+            // Fonction pour vérifier la taille d'un fichier temporaire
+            $checkFileSize = function ($path, $fileName) use ($maxFileSize) {
+                if (!$path) return true;
+                $tempPath = str_replace('storage/', '', $path);
+                $fullPath = storage_path('app/public/' . $tempPath);
+                if (file_exists($fullPath) && filesize($fullPath) > $maxFileSize) {
+                    return false;
+                }
+                return true; 
+            };
+
+            // Vérifier le certificat de nationalité
+            if ($request->certificat_nationalite && !$checkFileSize($request->certificat_nationalite, 'Certificat de nationalité')) {
+                return back()->withErrors(['error' => 'Le certificat de nationalité ne doit pas dépasser 1 Mo.']);
+            }
+
+            // Vérifier la demande manuscrite
+            if ($request->demande_manuscrite && !$checkFileSize($request->demande_manuscrite, 'Demande manuscrite')) {
+                return back()->withErrors(['error' => 'La demande manuscrite ne doit pas dépasser 1 Mo.']);
+            }
+
+            // Vérifier les pièces dynamiques
             $piecesEnvoyees = $request->pieces ?? [];
+            foreach ($piecesEnvoyees as $slug => $tempPath) {
+                if (!$checkFileSize($tempPath, $slug)) {
+                    return back()->withErrors(['error' => 'Un document complémentaire ne doit pas dépasser 1 Mo.']);
+                }
+            }
+
+            // 7. VÉRIFICATION DES PIÈCES COMPLÉMENTAIRES
             foreach ($concour->piecesComplementaires as $pieceRequise) {
                 if ($pieceRequise->is_required && empty($piecesEnvoyees[$pieceRequise->slug])) {
                     return back()->withErrors(['error' => "Le document suivant est obligatoire : {$pieceRequise->nom_document}"]);
@@ -212,17 +308,18 @@ class CandidatPostulerController extends Controller
             $pathNationalite = $moveFile($request->certificat_nationalite);
             $pathDemande = $moveFile($request->demande_manuscrite);
 
-            // 7. CRÉATION
+            // 8. CRÉATION
             $candidature = Candidature::create([
                 'profil_id'      => $profil->id,
                 'concour_id'     => $request->concour_id,
+                'specialite_id'  => $concour->has_specialites ? $request->specialite_id : null,
                 'demande_lettre' => $pathDemande,
                 'nationalite'    => $pathNationalite,
                 'num_dossier'    => $numDossier,
                 'resultat'       => "Traitement",
             ]);
 
-            // 8. PIÈCES DYNAMIQUES
+            // 9. PIÈCES DYNAMIQUES
             if (!empty($piecesEnvoyees)) {
                 foreach ($piecesEnvoyees as $slug => $tempPath) {
                     $finalPath = $moveFile($tempPath);

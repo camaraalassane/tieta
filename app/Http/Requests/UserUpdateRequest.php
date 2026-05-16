@@ -28,6 +28,7 @@ class UserUpdateRequest extends FormRequest
             'password'              => ['nullable', 'confirmed', Password::defaults()],
             'password_confirmation' => 'sometimes|required_with:password|same:password',
             'role'                  => ['required'],
+            'portee' => 'nullable|in:général,restreint',
         ];
     }
 }
