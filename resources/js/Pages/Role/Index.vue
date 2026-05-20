@@ -2,11 +2,11 @@
 import AppLayout from "@/sakai/layout/AppLayout.vue";
 import Create from "@/Pages/Role/Create.vue";
 import Edit from "@/Pages/Role/Edit.vue";
-import { usePage, useForm, router } from '@inertiajs/vue3';
+import { usePage, useForm, router } from "@inertiajs/vue3";
 import { onMounted, reactive, ref, watch, computed } from "vue";
 import pkg from "lodash";
 const { _, debounce, pickBy } = pkg;
-import { loadToast } from '@/composables/loadToast';
+import { loadToast } from "@/composables/loadToast";
 
 const props = defineProps({
     title: String,
@@ -36,9 +36,9 @@ const form = useForm({});
 
 const data = reactive({
     params: {
-        search: props.filters?.search || '',
-        field: props.filters?.field || '',
-        order: props.filters?.order || '',
+        search: props.filters?.search || "",
+        field: props.filters?.field || "",
+        order: props.filters?.order || "",
         createOpen: false,
         editOpen: false,
     },
@@ -50,8 +50,8 @@ const stats = computed(() => {
     const roles = props.roles?.data || [];
     return {
         total: props.roles?.total || 0,
-        withPermissions: roles.filter(r => r.permissions?.length > 0).length,
-        withoutPermissions: roles.filter(r => !r.permissions?.length).length,
+        withPermissions: roles.filter((r) => r.permissions?.length > 0).length,
+        withoutPermissions: roles.filter((r) => !r.permissions?.length).length,
     };
 });
 
@@ -68,10 +68,14 @@ const deleteData = () => {
 };
 
 const onPageChange = (event) => {
-    router.get(route('role.index'), { 
-        page: event.page + 1,
-        ...data.params 
-    }, { preserveState: true });
+    router.get(
+        route("role.index"),
+        {
+            page: event.page + 1,
+            ...data.params,
+        },
+        { preserveState: true },
+    );
 };
 
 // --- RECHERCHE ---
@@ -88,19 +92,20 @@ watch(
     () => data.params.search,
     () => {
         performSearch();
-    }
+    },
 );
 
 // --- FORMATAGE ---
 const formatPermissionName = (name) => {
-    return name.split(' ').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    return name
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 };
 </script>
 
 <template>
-    <app-layout>            
+    <app-layout>
         <div class="card p-6">
             <Create
                 :show="data.createOpen"
@@ -116,89 +121,123 @@ const formatPermissionName = (name) => {
                 :permissions="props.permissions"
             />
 
-            <!-- En-tête -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <!-- ⭐ En-tête dynamique -->
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+            >
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                        <i class="pi pi-shield text-emerald-500"></i>
+                    <h1
+                        class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+                    >
+                        <i class="pi pi-shield theme-text-primary"></i>
                         Gestion des rôles
                     </h1>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         {{ stats.total }} rôles au total
                     </p>
                 </div>
-                
+
                 <div class="flex items-center gap-2">
-                    <Button 
-                        v-if="hasAccess('create role')" 
+                    <!-- ⭐ Bouton Nouveau rôle - Dynamique -->
+                    <Button
+                        v-if="hasAccess('create role')"
                         label="Nouveau rôle"
-                        @click="data.createOpen = true" 
+                        @click="data.createOpen = true"
                         icon="pi pi-plus"
-                        class="bg-emerald-500 hover:bg-emerald-600 border-none text-white shadow-lg shadow-emerald-500/30"
+                        class="btn-primary shadow-lg"
                     />
                 </div>
             </div>
 
-            <!-- Statistiques rapides -->
+            <!-- ⭐ Statistiques rapides -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800/30">
+                <!-- Total rôles -->
+                <div class="stat-card-total rounded-xl p-4 border">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white">
+                        <div
+                            class="stat-icon-total rounded-lg flex items-center justify-center text-white"
+                        >
                             <i class="pi pi-shield"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Total rôles</p>
-                            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ stats.total }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Total rôles
+                            </p>
+                            <p class="text-2xl font-bold stat-text-total">
+                                {{ stats.total }}
+                            </p>
                         </div>
                     </div>
                 </div>
-                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
+                <!-- Avec permissions -->
+                <div
+                    class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30"
+                >
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                        <div
+                            class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white"
+                        >
                             <i class="pi pi-check"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Avec permissions</p>
-                            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ stats.withPermissions }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Avec permissions
+                            </p>
+                            <p
+                                class="text-2xl font-bold text-blue-600 dark:text-blue-400"
+                            >
+                                {{ stats.withPermissions }}
+                            </p>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                <!-- Sans permission -->
+                <div
+                    class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700"
+                >
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-gray-500 rounded-lg flex items-center justify-center text-white">
+                        <div
+                            class="w-10 h-10 bg-gray-500 rounded-lg flex items-center justify-center text-white"
+                        >
                             <i class="pi pi-ban"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Sans permission</p>
-                            <p class="text-2xl font-bold text-gray-600 dark:text-gray-400">{{ stats.withoutPermissions }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Sans permission
+                            </p>
+                            <p
+                                class="text-2xl font-bold text-gray-600 dark:text-gray-400"
+                            >
+                                {{ stats.withoutPermissions }}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Barre de recherche -->
+            <!-- ⭐ Barre de recherche -->
             <div class="flex justify-end mb-4">
                 <IconField iconPosition="left">
                     <InputIcon>
-                        <i class="pi pi-search text-emerald-500" />
+                        <i class="pi pi-search theme-text-primary" />
                     </InputIcon>
-                    <InputText 
-                        v-model="data.params.search" 
+                    <InputText
+                        v-model="data.params.search"
                         placeholder="Rechercher un rôle..."
-                        class="p-inputtext-sm w-full sm:w-80 border-emerald-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                        class="p-inputtext-sm w-full sm:w-80"
                     />
                 </IconField>
             </div>
 
             <!-- Tableau des rôles -->
-            <DataTable 
-                lazy 
-                :value="roles.data" 
-                paginator 
-                :rows="roles.per_page" 
-                :totalRecords="roles.total" 
-                :first="(roles.current_page - 1) * roles.per_page" 
-                @page="onPageChange" 
+            <DataTable
+                lazy
+                :value="roles.data"
+                paginator
+                :rows="roles.per_page"
+                :totalRecords="roles.total"
+                :first="(roles.current_page - 1) * roles.per_page"
+                @page="onPageChange"
                 tableStyle="min-width: 50rem"
                 class="p-datatable-sm"
                 stripedRows
@@ -206,52 +245,83 @@ const formatPermissionName = (name) => {
             >
                 <Column header="#" headerStyle="width: 5%">
                     <template #body="slotProps">
-                        <span class="text-gray-500">{{ slotProps.index + 1 }}</span>
+                        <span class="text-gray-500">{{
+                            slotProps.index + 1
+                        }}</span>
                     </template>
                 </Column>
 
                 <Column field="name" header="Nom" style="width: 25%">
                     <template #body="slotProps">
                         <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                                {{ slotProps.data.name?.charAt(0).toUpperCase() }}
+                            <div class="role-avatar">
+                                {{
+                                    slotProps.data.name?.charAt(0).toUpperCase()
+                                }}
                             </div>
-                            <span class="font-medium">{{ slotProps.data.name }}</span>
+                            <span class="font-medium">{{
+                                slotProps.data.name
+                            }}</span>
                         </div>
                     </template>
                 </Column>
-                
+
                 <Column header="Permissions" style="width: 50%">
                     <template #body="slotProps">
                         <div class="flex items-center">
-                            <!-- Badge pour toutes les permissions -->
-                            <div 
-                                v-if="slotProps.data.permissions?.length === props.permissions?.length"
-                                @click="(permissionDialog = true), (data.role = slotProps.data)"
+                            <!-- Toutes les permissions -->
+                            <div
+                                v-if="
+                                    slotProps.data.permissions?.length ===
+                                    props.permissions?.length
+                                "
+                                @click="
+                                    (permissionDialog = true),
+                                        (data.role = slotProps.data)
+                                "
                                 class="cursor-pointer group"
                             >
-                                <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-sm font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">
-                                    <i class="pi pi-check-circle text-emerald-500"></i>
+                                <span
+                                    class="inline-flex items-center gap-2 px-3 py-1.5 permission-badge-all rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    <i
+                                        class="pi pi-check-circle theme-text-primary"
+                                    ></i>
                                     Toutes les permissions
-                                    <i class="pi pi-chevron-right text-xs opacity-50 group-hover:opacity-100 transition-opacity"></i>
+                                    <i
+                                        class="pi pi-chevron-right text-xs opacity-50 group-hover:opacity-100 transition-opacity"
+                                    ></i>
                                 </span>
                             </div>
-                            
-                            <!-- Badge pour permissions partielles -->
-                            <div 
-                                v-else-if="slotProps.data.permissions?.length > 0"
-                                @click="(permissionDialog = true), (data.role = slotProps.data)"
+
+                            <!-- Permissions partielles -->
+                            <div
+                                v-else-if="
+                                    slotProps.data.permissions?.length > 0
+                                "
+                                @click="
+                                    (permissionDialog = true),
+                                        (data.role = slotProps.data)
+                                "
                                 class="cursor-pointer group"
                             >
-                                <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
+                                <span
+                                    class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                >
                                     <i class="pi pi-list text-blue-500"></i>
-                                    {{ slotProps.data.permissions.length }} permission(s)
-                                    <i class="pi pi-chevron-right text-xs opacity-50 group-hover:opacity-100 transition-opacity"></i>
+                                    {{ slotProps.data.permissions.length }}
+                                    permission(s)
+                                    <i
+                                        class="pi pi-chevron-right text-xs opacity-50 group-hover:opacity-100 transition-opacity"
+                                    ></i>
                                 </span>
                             </div>
-                            
-                            <!-- Badge pour aucune permission -->
-                            <div v-else class="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg text-sm">
+
+                            <!-- Aucune permission -->
+                            <div
+                                v-else
+                                class="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-lg text-sm"
+                            >
                                 <i class="pi pi-ban mr-1"></i>
                                 Aucune permission
                             </div>
@@ -262,18 +332,24 @@ const formatPermissionName = (name) => {
                 <Column header="Actions" :exportable="false" style="width: 15%">
                     <template #body="slotProps">
                         <div class="flex items-center gap-2">
-                            <Button 
-                                v-if="hasAccess('update role')" 
+                            <Button
+                                v-if="hasAccess('update role')"
                                 icon="pi pi-pencil"
-                                class="p-button-rounded p-button-text p-button-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                @click="(data.editOpen = true), (data.role = slotProps.data)"
+                                class="p-button-rounded p-button-text p-button-sm action-edit-btn"
+                                @click="
+                                    (data.editOpen = true),
+                                        (data.role = slotProps.data)
+                                "
                                 v-tooltip.top="'Modifier'"
                             />
-                            <Button 
-                                v-if="hasAccess('delete role')" 
+                            <Button
+                                v-if="hasAccess('delete role')"
                                 icon="pi pi-trash"
                                 class="p-button-rounded p-button-text p-button-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                                @click="deleteDialog = true; data.role = slotProps.data"
+                                @click="
+                                    deleteDialog = true;
+                                    data.role = slotProps.data;
+                                "
                                 v-tooltip.top="'Supprimer'"
                             />
                         </div>
@@ -281,86 +357,113 @@ const formatPermissionName = (name) => {
                 </Column>
             </DataTable>
 
-            <!-- Dialog de confirmation de suppression -->
-            <Dialog 
-                v-model:visible="deleteDialog" 
-                :style="{ width: '450px' }" 
-                header="Confirmation de suppression" 
+            <!-- ⭐ Dialog de confirmation de suppression -->
+            <Dialog
+                v-model:visible="deleteDialog"
+                :style="{ width: '450px' }"
+                header="Confirmation de suppression"
                 :modal="true"
                 class="p-fluid"
             >
                 <div class="flex flex-col items-center gap-4 p-4">
-                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                        <i class="pi pi-exclamation-triangle text-3xl text-red-600" />
+                    <div
+                        class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center"
+                    >
+                        <i
+                            class="pi pi-exclamation-triangle text-3xl text-red-600"
+                        />
                     </div>
                     <div class="text-center">
-                        <h3 class="text-lg font-semibold mb-2">Êtes-vous sûr ?</h3>
+                        <h3 class="text-lg font-semibold mb-2">
+                            Êtes-vous sûr ?
+                        </h3>
                         <p v-if="data.role" class="text-sm text-gray-500">
-                            Vous allez supprimer le rôle <span class="font-semibold">{{ data.role.name }}</span>.
-                            Cette action est irréversible.
+                            Vous allez supprimer le rôle
+                            <span class="font-semibold">{{
+                                data.role.name
+                            }}</span
+                            >. Cette action est irréversible.
                         </p>
                     </div>
                 </div>
                 <template #footer>
                     <div class="flex justify-center gap-2">
-                        <Button 
-                            label="Annuler" 
-                            icon="pi pi-times" 
-                            class="p-button-outlined p-button-secondary" 
-                            @click="deleteDialog = false" 
+                        <Button
+                            label="Annuler"
+                            icon="pi pi-times"
+                            class="btn-outlined-primary"
+                            @click="deleteDialog = false"
                         />
-                        <Button 
-                            label="Supprimer" 
-                            icon="pi pi-trash" 
-                            class="p-button-danger" 
-                            @click="deleteData" 
+                        <Button
+                            label="Supprimer"
+                            icon="pi pi-trash"
+                            class="p-button-danger"
+                            @click="deleteData"
                         />
                     </div>
                 </template>
             </Dialog>
 
-            <!-- Dialog des permissions -->
-            <Dialog 
-                v-model:visible="permissionDialog" 
-                modal 
-                :header="'Permissions du rôle : ' + data.role?.name" 
+            <!-- ⭐ Dialog des permissions -->
+            <Dialog
+                v-model:visible="permissionDialog"
+                modal
+                :header="'Permissions du rôle : ' + data.role?.name"
                 :style="{ width: '600px' }"
                 class="p-fluid"
             >
                 <div class="p-4">
-                    <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <i class="pi pi-info-circle text-emerald-500"></i>
-                            <span>Total: <strong>{{ data.role?.permissions?.length || 0 }}</strong> permission(s)</span>
+                    <div class="mb-4 p-3 dialog-permission-info rounded-lg">
+                        <div
+                            class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
+                        >
+                            <i class="pi pi-info-circle theme-text-primary"></i>
+                            <span
+                                >Total:
+                                <strong>{{
+                                    data.role?.permissions?.length || 0
+                                }}</strong>
+                                permission(s)</span
+                            >
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-96 overflow-y-auto p-2">
-                        <div 
-                            v-for="(permission, index) in data.role?.permissions" 
+
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-96 overflow-y-auto p-2"
+                    >
+                        <div
+                            v-for="(permission, index) in data.role
+                                ?.permissions"
                             :key="index"
                             class="px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-emerald-500 transition-colors"
                         >
                             <div class="flex items-start gap-2">
-                                <i class="pi pi-check-circle text-emerald-500 mt-0.5 text-xs"></i>
-                                <span class="text-sm text-gray-700 dark:text-gray-300">
+                                <i
+                                    class="pi pi-check-circle theme-text-primary mt-0.5 text-xs"
+                                ></i>
+                                <span
+                                    class="text-sm text-gray-700 dark:text-gray-300"
+                                >
                                     {{ formatPermissionName(permission.name) }}
                                 </span>
                             </div>
                         </div>
-                        
-                        <div v-if="!data.role?.permissions?.length" class="col-span-2 text-center py-8 text-gray-500">
+
+                        <div
+                            v-if="!data.role?.permissions?.length"
+                            class="col-span-2 text-center py-8 text-gray-500"
+                        >
                             <i class="pi pi-ban text-3xl mb-2 opacity-50"></i>
                             <p>Aucune permission assignée à ce rôle</p>
                         </div>
                     </div>
                 </div>
                 <template #footer>
-                    <Button 
-                        label="Fermer" 
-                        icon="pi pi-times" 
-                        class="p-button-text" 
-                        @click="permissionDialog = false" 
+                    <Button
+                        label="Fermer"
+                        icon="pi pi-times"
+                        class="btn-outlined-primary"
+                        @click="permissionDialog = false"
                     />
                 </template>
             </Dialog>
@@ -369,55 +472,138 @@ const formatPermissionName = (name) => {
 </template>
 
 <style scoped>
-:deep(.p-datatable .p-datatable-thead > tr > th) {
-    background: #f9fafb;
-    color: #374151;
+/* ⭐ Icône thème */
+.theme-text-primary {
+    color: var(--color-primary) !important;
+}
+
+/* ⭐ Bouton primaire */
+.btn-primary {
+    background: var(--color-primary) !important;
+    border: none !important;
+    color: white !important;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-dark) !important;
+    transform: translateY(-1px);
+}
+
+/* ⭐ Bouton outlined */
+.btn-outlined-primary {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    background: transparent !important;
+}
+
+.btn-outlined-primary:hover {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+
+/* ⭐ Carte statistique Total - Dynamique */
+.stat-card-total {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary-light);
+}
+
+.dark .stat-card-total {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.stat-icon-total {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: var(--color-primary);
+}
+
+.stat-text-total {
+    color: var(--color-primary-dark);
+}
+
+.dark .stat-text-total {
+    color: var(--color-primary-light);
+}
+
+/* ⭐ Avatar rôle */
+.role-avatar {
+    width: 2rem;
+    height: 2rem;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 600;
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
+    font-size: 0.75rem;
 }
 
-:deep(.p-datatable .p-datatable-tbody > tr:hover) {
-    background: #f0fdf4;
+.dark .role-avatar {
+    background: rgba(16, 185, 129, 0.3);
+    color: var(--color-primary-light);
 }
 
-.dark :deep(.p-datatable .p-datatable-tbody > tr:hover) {
+/* ⭐ Badge toutes permissions */
+.permission-badge-all {
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+}
+
+.dark .permission-badge-all {
+    background: rgba(16, 185, 129, 0.3);
+    color: var(--color-primary-light);
+}
+
+.permission-badge-all:hover {
+    background: var(--color-primary);
+    color: white;
+}
+
+.dark .permission-badge-all:hover {
+    background: rgba(16, 185, 129, 0.5);
+    color: white;
+}
+
+/* ⭐ Dialog permission info */
+.dialog-permission-info {
+    background: var(--color-primary-light);
+}
+
+.dark .dialog-permission-info {
     background: rgba(16, 185, 129, 0.1);
 }
 
-/* Animation pour les statistiques */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* ⭐ Bouton édition */
+.action-edit-btn {
+    color: var(--color-primary) !important;
 }
 
-.grid > div {
-    animation: fadeInUp 0.3s ease-out;
+.action-edit-btn:hover {
+    color: var(--color-primary-dark) !important;
+    background: var(--color-primary-light) !important;
 }
 
-/* Scrollbar personnalisée pour la liste des permissions */
-.max-h-96::-webkit-scrollbar {
-    width: 6px;
+/* ⭐ Focus */
+:deep(.p-inputtext:focus) {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px var(--color-primary-light) !important;
 }
 
-.max-h-96::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
+/* ⭐ Pagination */
+:deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
 }
 
-.max-h-96::-webkit-scrollbar-thumb {
-    background: #10b981;
-    border-radius: 10px;
+/* ⭐ Datatable hover */
+:deep(.p-datatable .p-datatable-tbody > tr:hover) {
+    background: var(--color-primary-light) !important;
 }
 
-.max-h-96::-webkit-scrollbar-thumb:hover {
-    background: #059669;
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+    border-bottom: 2px solid var(--color-primary-light);
 }
 </style>

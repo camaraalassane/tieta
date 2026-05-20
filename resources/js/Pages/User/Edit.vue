@@ -9,9 +9,16 @@ const props = defineProps({
     roles: Object,
 });
 
+// ⭐ Fonction pour les icônes de rôle
+const getRoleIconClass = (code) => {
+    return {
+        "pi-star text-purple-500": code === "superadmin",
+        "pi-shield theme-text-primary": code === "admin",
+        "pi-user text-blue-500": code === "operator",
+    };
+};
 const emit = defineEmits(["close"]);
 
-// État pour afficher/masquer le mot de passe
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
 
@@ -22,7 +29,17 @@ const form = useForm({
     password: "",
     password_confirmation: "",
     role: "",
+    portee: "restreint", // ⭐
 });
+
+// ⭐ Options pour la portée
+const porteeOptions = ref([
+    { label: "Général (Accès total)", value: "général" },
+    { label: "Restreint (Sans User/Rôle)", value: "restreint" },
+]);
+
+// ⭐ Afficher le select portee SEULEMENT si superadmin
+const showPortee = computed(() => form.role === "superadmin");
 
 const update = () => {
     form.put(route("user.update", props.user?.id), {
@@ -36,7 +53,6 @@ const update = () => {
     });
 };
 
-// Initialisation du formulaire
 watchEffect(() => {
     if (props.show && props.user) {
         form.clearErrors();
@@ -44,49 +60,46 @@ watchEffect(() => {
         form.prenom = props.user.prenom || "";
         form.email = props.user.email || "";
         form.role = props.user?.roles?.[0]?.name || "";
-        // Ne pas pré-remplir les mots de passe
+        form.portee = props.user?.portee || "restreint"; // ⭐
         form.password = "";
         form.password_confirmation = "";
     }
 });
 
-// Nom complet pour l'affichage
-const fullName = computed(() => {
-    return `${form.prenom || ''} ${form.name || ''}`.trim() || 'Nouvel utilisateur';
-});
+const fullName = computed(
+    () =>
+        `${form.prenom || ""} ${form.name || ""}`.trim() ||
+        "Nouvel utilisateur",
+);
 
-// Règles de validation du mot de passe
 const passwordStrength = computed(() => {
     if (!form.password) return null;
-    
     let strength = 0;
     if (form.password.length >= 8) strength++;
     if (/[A-Z]/.test(form.password)) strength++;
     if (/[0-9]/.test(form.password)) strength++;
     if (/[^A-Za-z0-9]/.test(form.password)) strength++;
-    
     return strength;
 });
 
 const passwordStrengthClass = computed(() => {
     const strength = passwordStrength.value;
-    if (!strength) return '';
-    if (strength <= 1) return 'bg-red-500';
-    if (strength <= 2) return 'bg-yellow-500';
-    if (strength <= 3) return 'bg-blue-500';
-    return 'bg-emerald-500';
+    if (!strength) return "";
+    if (strength <= 1) return "bg-red-500";
+    if (strength <= 2) return "bg-yellow-500";
+    if (strength <= 3) return "bg-blue-500";
+    return "bg-emerald-500";
 });
 
 const passwordStrengthText = computed(() => {
     const strength = passwordStrength.value;
-    if (!strength) return '';
-    if (strength <= 1) return 'Faible';
-    if (strength <= 2) return 'Moyen';
-    if (strength <= 3) return 'Bon';
-    return 'Fort';
+    if (!strength) return "";
+    if (strength <= 1) return "Faible";
+    if (strength <= 2) return "Moyen";
+    if (strength <= 3) return "Bon";
+    return "Fort";
 });
 
-// Annuler et fermer
 const cancel = () => {
     form.reset();
     form.clearErrors();
@@ -104,10 +117,18 @@ const cancel = () => {
         :closable="true"
         @hide="cancel"
     >
-        <!-- En-tête avec avatar -->
-        <div class="flex items-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                {{ (form.prenom?.charAt(0) || form.name?.charAt(0) || 'U').toUpperCase() }}
+        <!-- ⭐ En-tête du dialogue - Dynamique -->
+        <div
+            class="flex items-center gap-4 mb-6 p-4 dialog-header-info rounded-lg"
+        >
+            <div class="dialog-avatar">
+                {{
+                    (
+                        form.prenom?.charAt(0) ||
+                        form.name?.charAt(0) ||
+                        "U"
+                    ).toUpperCase()
+                }}
             </div>
             <div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -121,12 +142,15 @@ const cancel = () => {
 
         <form @submit.prevent="update">
             <div class="flex flex-col gap-5">
-                <!-- Ligne Nom et Prénom -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Nom -->
                     <div class="flex flex-col gap-2">
-                        <label for="name" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            <i class="pi pi-user mr-2 text-emerald-500"></i>
-                            Nom
+                        <label
+                            for="name"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            <i class="pi pi-user mr-2 theme-text-primary"></i
+                            >Nom
                         </label>
                         <InputText
                             id="name"
@@ -136,15 +160,20 @@ const cancel = () => {
                             placeholder="Nom"
                             :class="{ 'p-invalid': form.errors.name }"
                         />
-                        <small v-if="form.errors.name" class="text-red-500 text-xs">
-                            {{ form.errors.name }}
-                        </small>
+                        <small
+                            v-if="form.errors.name"
+                            class="text-red-500 text-xs"
+                            >{{ form.errors.name }}</small
+                        >
                     </div>
-
+                    <!-- Prénom -->
                     <div class="flex flex-col gap-2">
-                        <label for="prenom" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            <i class="pi pi-user mr-2 text-emerald-500"></i>
-                            Prénom
+                        <label
+                            for="prenom"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            <i class="pi pi-user mr-2 theme-text-primary"></i
+                            >Prénom
                         </label>
                         <InputText
                             id="prenom"
@@ -154,17 +183,22 @@ const cancel = () => {
                             placeholder="Prénom"
                             :class="{ 'p-invalid': form.errors.prenom }"
                         />
-                        <small v-if="form.errors.prenom" class="text-red-500 text-xs">
-                            {{ form.errors.prenom }}
-                        </small>
+                        <small
+                            v-if="form.errors.prenom"
+                            class="text-red-500 text-xs"
+                            >{{ form.errors.prenom }}</small
+                        >
                     </div>
                 </div>
 
                 <!-- Email -->
                 <div class="flex flex-col gap-2">
-                    <label for="email" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <i class="pi pi-envelope mr-2 text-emerald-500"></i>
-                        Email
+                    <label
+                        for="email"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                        <i class="pi pi-envelope mr-2 theme-text-primary"></i
+                        >Email
                     </label>
                     <InputText
                         id="email"
@@ -175,28 +209,36 @@ const cancel = () => {
                         placeholder="email@exemple.com"
                         :class="{ 'p-invalid': form.errors.email }"
                     />
-                    <small v-if="form.errors.email" class="text-red-500 text-xs">
-                        {{ form.errors.email }}
-                    </small>
+                    <small
+                        v-if="form.errors.email"
+                        class="text-red-500 text-xs"
+                        >{{ form.errors.email }}</small
+                    >
                 </div>
 
-                <!-- Séparateur pour la section mot de passe -->
+                <!-- Séparateur -->
                 <div class="relative my-2">
                     <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                        <div
+                            class="w-full border-t border-gray-200 dark:border-gray-700"
+                        ></div>
                     </div>
                     <div class="relative flex justify-center text-sm">
-                        <span class="px-3 bg-white dark:bg-gray-800 text-gray-500">
-                            Changer le mot de passe
-                        </span>
+                        <span
+                            class="px-3 bg-white dark:bg-gray-800 text-gray-500"
+                            >Changer le mot de passe</span
+                        >
                     </div>
                 </div>
 
-                <!-- Nouveau mot de passe -->
+                <!-- Mot de passe -->
                 <div class="flex flex-col gap-2">
-                    <label for="password" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <i class="pi pi-lock mr-2 text-emerald-500"></i>
-                        Nouveau mot de passe
+                    <label
+                        for="password"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                        <i class="pi pi-lock mr-2 theme-text-primary"></i
+                        >Nouveau mot de passe
                     </label>
                     <div class="relative">
                         <InputText
@@ -212,78 +254,102 @@ const cancel = () => {
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-500 transition-colors"
                             @click="showPassword = !showPassword"
                         >
-                            <i :class="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                            <i
+                                :class="
+                                    showPassword
+                                        ? 'pi pi-eye-slash'
+                                        : 'pi pi-eye'
+                                "
+                            ></i>
                         </button>
                     </div>
-                    
-                    <!-- Indicateur de force du mot de passe -->
                     <div v-if="form.password" class="mt-1">
                         <div class="flex items-center gap-2">
-                            <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
+                            <div
+                                class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden"
+                            >
+                                <div
                                     class="h-full transition-all duration-300"
                                     :class="passwordStrengthClass"
-                                    :style="{ width: (passwordStrength * 25) + '%' }"
+                                    :style="{
+                                        width: passwordStrength * 25 + '%',
+                                    }"
                                 ></div>
                             </div>
-                            <span class="text-xs font-medium" :class="passwordStrengthClass.replace('bg-', 'text-')">
+                            <span
+                                class="text-xs font-medium"
+                                :class="
+                                    passwordStrengthClass.replace(
+                                        'bg-',
+                                        'text-',
+                                    )
+                                "
+                            >
                                 {{ passwordStrengthText }}
                             </span>
                         </div>
                     </div>
-                    
-                    <small v-if="form.errors.password" class="text-red-500 text-xs">
-                        {{ form.errors.password }}
-                    </small>
+                    <small
+                        v-if="form.errors.password"
+                        class="text-red-500 text-xs"
+                        >{{ form.errors.password }}</small
+                    >
                 </div>
 
                 <!-- Confirmation mot de passe -->
                 <div class="flex flex-col gap-2">
-                    <label for="password_confirmation" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <i class="pi pi-lock mr-2 text-emerald-500"></i>
-                        Confirmer le mot de passe
+                    <label
+                        for="password_confirmation"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                        <i class="pi pi-lock mr-2 theme-text-primary"></i
+                        >Confirmer le mot de passe
                     </label>
                     <div class="relative">
                         <InputText
                             id="password_confirmation"
                             v-model="form.password_confirmation"
-                            :type="showPasswordConfirmation ? 'text' : 'password'"
+                            :type="
+                                showPasswordConfirmation ? 'text' : 'password'
+                            "
                             class="w-full pr-10"
                             placeholder="Confirmer le nouveau mot de passe"
-                            :class="{ 'p-invalid': form.errors.password_confirmation }"
+                            :class="{
+                                'p-invalid': form.errors.password_confirmation,
+                            }"
                         />
                         <button
                             type="button"
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-500 transition-colors"
-                            @click="showPasswordConfirmation = !showPasswordConfirmation"
+                            @click="
+                                showPasswordConfirmation =
+                                    !showPasswordConfirmation
+                            "
                         >
-                            <i :class="showPasswordConfirmation ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                            <i
+                                :class="
+                                    showPasswordConfirmation
+                                        ? 'pi pi-eye-slash'
+                                        : 'pi pi-eye'
+                                "
+                            ></i>
                         </button>
                     </div>
-                    
-                    <!-- Indicateur de correspondance -->
-                    <div v-if="form.password && form.password_confirmation" class="mt-1">
-                        <div class="flex items-center gap-2">
-                            <i 
-                                class="pi text-xs"
-                                :class="form.password === form.password_confirmation ? 'pi-check-circle text-emerald-500' : 'pi-times-circle text-red-500'"
-                            ></i>
-                            <span class="text-xs" :class="form.password === form.password_confirmation ? 'text-emerald-500' : 'text-red-500'">
-                                {{ form.password === form.password_confirmation ? 'Mots de passe identiques' : 'Les mots de passe ne correspondent pas' }}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <small v-if="form.errors.password_confirmation" class="text-red-500 text-xs">
+                    <small
+                        v-if="form.errors.password_confirmation"
+                        class="text-red-500 text-xs"
+                    >
                         {{ form.errors.password_confirmation }}
                     </small>
                 </div>
 
-                <!-- Rôle -->
+                <!-- ⭐ Rôle -->
                 <div class="flex flex-col gap-2">
-                    <label for="role" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <i class="pi pi-shield mr-2 text-emerald-500"></i>
-                        Rôle
+                    <label
+                        for="role"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                        <i class="pi pi-shield mr-2 theme-text-primary"></i>Rôle
                     </label>
                     <Select
                         v-model="form.role"
@@ -295,46 +361,72 @@ const cancel = () => {
                         :class="{ 'p-invalid': form.errors.role }"
                     >
                         <template #value="slotProps">
-                            <div v-if="slotProps.value" class="flex items-center gap-2">
-                                <i 
+                            <div
+                                v-if="slotProps.value"
+                                class="flex items-center gap-2"
+                            >
+                                <i
                                     class="pi"
-                                    :class="{
-                                        'pi-star text-purple-500': slotProps.value === 'superadmin',
-                                        'pi-shield text-emerald-500': slotProps.value === 'admin',
-                                        'pi-user text-blue-500': slotProps.value === 'operator'
-                                    }"
+                                    :class="getRoleIconClass(slotProps.value)"
                                 ></i>
-                                <span>{{ props.roles?.find(r => r.code === slotProps.value)?.name }}</span>
+                                <span>{{
+                                    props.roles?.find(
+                                        (r) => r.code === slotProps.value,
+                                    )?.name
+                                }}</span>
                             </div>
-                            <span v-else>{{ slotProps.placeholder }}</span>
                         </template>
-                        
                         <template #option="slotProps">
                             <div class="flex items-center gap-2">
-                                <i 
+                                <i
                                     class="pi"
-                                    :class="{
-                                        'pi-star text-purple-500': slotProps.option.code === 'superadmin',
-                                        'pi-shield text-emerald-500': slotProps.option.code === 'admin',
-                                        'pi-user text-blue-500': slotProps.option.code === 'operator'
-                                    }"
+                                    :class="
+                                        getRoleIconClass(slotProps.option.code)
+                                    "
                                 ></i>
                                 <span>{{ slotProps.option.name }}</span>
                             </div>
                         </template>
                     </Select>
-                    <small v-if="form.errors.role" class="text-red-500 text-xs">
-                        {{ form.errors.role }}
+                    <small
+                        v-if="form.errors.role"
+                        class="text-red-500 text-xs"
+                        >{{ form.errors.role }}</small
+                    >
+                </div>
+
+                <!-- ⭐ Portée - Visible SEULEMENT si superadmin -->
+                <div v-if="showPortee" class="flex flex-col gap-2">
+                    <label
+                        for="portee"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                        <i class="pi pi-flag mr-2 text-purple-500"></i>Type de
+                        Superadmin <span class="text-red-500">*</span>
+                    </label>
+                    <Select
+                        v-model="form.portee"
+                        :options="porteeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Sélectionner la portée"
+                        class="w-full"
+                    />
+                    <small class="text-gray-400 text-xs">
+                        <i class="pi pi-info-circle mr-1"></i>Général : accès à
+                        tout. Restreint : sans User/Rôle.
                     </small>
                 </div>
 
-                <!-- Boutons d'action -->
-                <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <!-- ⭐ Actions -->
+                <div
+                    class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+                >
                     <Button
                         type="button"
                         label="Annuler"
                         icon="pi pi-times"
-                        class="p-button-outlined p-button-secondary"
+                        class="btn-outlined-primary"
                         @click="cancel"
                         :disabled="form.processing"
                     />
@@ -342,7 +434,7 @@ const cancel = () => {
                         type="submit"
                         label="Mettre à jour"
                         icon="pi pi-check"
-                        class="bg-emerald-500 hover:bg-emerald-600 border-none text-white"
+                        class="btn-primary"
                         :loading="form.processing"
                     />
                 </div>
@@ -350,29 +442,81 @@ const cancel = () => {
         </form>
     </Dialog>
 </template>
-
 <style scoped>
-:deep(.p-dialog .p-dialog-header) {
-    @apply pb-2;
+/* ⭐ Icône thème */
+.theme-text-primary {
+    color: var(--color-primary) !important;
 }
 
-:deep(.p-dialog .p-dialog-content) {
-    @apply pt-2;
+/* ⭐ En-tête du dialogue */
+.dialog-header-info {
+    background: var(--color-primary-light);
 }
 
-:deep(.p-inputtext) {
-    @apply border-gray-200 dark:border-gray-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all;
+.dark .dialog-header-info {
+    background: rgba(16, 185, 129, 0.1);
 }
 
-:deep(.p-select) {
-    @apply border-gray-200 dark:border-gray-700;
+/* ⭐ Avatar */
+.dialog-avatar {
+    width: 4rem;
+    height: 4rem;
+    background: linear-gradient(
+        135deg,
+        var(--color-primary),
+        var(--color-primary-dark)
+    );
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-:deep(.p-select:not(.p-disabled):hover) {
-    @apply border-emerald-500;
+/* ⭐ Boutons */
+.btn-primary {
+    background: var(--color-primary) !important;
+    border: none !important;
+    color: white !important;
+    transition: all 0.2s ease;
 }
 
-:deep(.p-select.p-focus) {
-    @apply border-emerald-500 ring-2 ring-emerald-200;
+.btn-primary:hover {
+    background: var(--color-primary-dark) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-outlined-primary {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    background: transparent !important;
+    transition: all 0.2s ease;
+}
+
+.btn-outlined-primary:hover {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+
+/* ⭐ Focus */
+:deep(.p-inputtext:focus),
+:deep(.p-select:focus) {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px var(--color-primary-light) !important;
+}
+
+/* ⭐ Select highlight */
+:deep(.p-select-panel .p-select-item.p-highlight) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+
+/* ⭐ Toggle password hover */
+.toggle-password-btn:hover {
+    color: var(--color-primary) !important;
 }
 </style>

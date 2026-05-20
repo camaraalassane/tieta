@@ -1,100 +1,209 @@
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import Tag from "primevue/tag";
+import Dialog from "primevue/dialog";
+import Button from "primevue/button";
 
-defineProps({
+const props = defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
     concours: Array,
     resultats: Array,
     communiquesActifs: Array,
+    servicesWithImages: Array,
 });
 
-// Images pour le carrousel
-const backgroundImages = [
-    "/Images/Voiture.jpg",
-    "/Images/Direction.jpg",
-    "/Images/antenne.JPG",
-    "/Images/Technicien.JPG",
-    "/Images/Batiment.JPG",
+// ⭐ Images par défaut (si un service n'a pas d'images)
+const defaultServiceImages = ["/Images/Fama.png", "/Images/armee1.jpg"];
+
+// ⭐ Couleurs des cards de service
+const cardColors = [
+    "from-emerald-600 to-emerald-800",
+    "from-blue-600 to-blue-800",
+    "from-purple-600 to-purple-800",
+    "from-orange-600 to-orange-800",
+    "from-rose-600 to-rose-800",
+    "from-cyan-600 to-cyan-800",
+    "from-amber-600 to-amber-800",
+    "from-indigo-600 to-indigo-800",
 ];
 
-// Texte explicatif du fonctionnement de l'application
-const heroTexts = [
-    {
-        titre: "Inscrivez-vous gratuitement",
-        sousTitre:
-            "Créez votre compte en quelques clics pour accéder à toutes les fonctionnalités de la plateforme",
-    },
-    {
-        titre: "Connectez-vous à votre espace",
-        sousTitre:
-            "Accédez à votre tableau de bord personnalisé et gérez vos candidatures",
-    },
-    {
-        titre: "Complétez votre profil",
-        sousTitre:
-            "Renseignez vos informations personnelles, votre parcours et vos documents",
-    },
-    {
-        titre: "Postulez aux concours",
-        sousTitre:
-            "Choisissez parmi les concours ouverts et déposez votre candidature en ligne",
-    },
-    {
-        titre: "Suivez vos candidatures en temps réel",
-        sousTitre:
-            "Consultez l'état d'avancement de vos dossiers et recevez des notifications",
-    },
-    {
-        titre: "Consultez et téléchargez les résultats",
-        sousTitre:
-            "Accédez aux listes d'admis et téléchargez les procès-verbaux officiels",
-    },
-    {
-        titre: "Restez informé des actualités",
-        sousTitre:
-            "Consultez les communiqués et annonces de lancement de nouveaux concours",
-    },
-];
+// ⭐ Tous les services pour les cards
+const allServices = computed(() => {
+    if (props.servicesWithImages && props.servicesWithImages.length > 0) {
+        return props.servicesWithImages;
+    }
+    return [
+        {
+            id: 0,
+            nom: "Plateforme officielle des concours",
+            description: "Rejoignez la plateforme de recrutement des FAMa",
+            images: [],
+        },
+    ];
+});
 
-const currentHeroIndex = ref(0);
-const currentImageIndex = ref(0);
-let heroInterval = null;
-let imageInterval = null;
+// ⭐ Indices d'images pour chaque service
+const serviceImageIndices = ref({});
+// ⭐ Intervalles pour chaque service
+const serviceIntervals = ref({});
+// ⭐ État de la face de chaque card (false = face images, true = face concours)
+const flippedCards = ref({});
+// ⭐ Concours filtrés pour chaque service
+const serviceConcours = ref({});
+// ⭐ Chargement des concours
+const loadingConcours = ref({});
 
-// Rotation automatique du texte toutes les 5 secondes
+// ⭐ Obtenir les images d'un service
+const getServiceImages = (service) => {
+    if (service.images && service.images.length > 0) {
+        return service.images.map((img) => img.url);
+    }
+    return defaultServiceImages;
+};
+
+// ⭐ Démarrer le cycle d'images pour un service spécifique
+const startServiceImageCycle = (serviceIndex) => {
+    if (flippedCards.value[serviceIndex]) return; // Ne pas défiler si retourné
+
+    if (serviceImageIndices.value[serviceIndex] === undefined) {
+        serviceImageIndices.value[serviceIndex] = 0;
+    }
+
+    if (serviceIntervals.value[serviceIndex]) {
+        clearInterval(serviceIntervals.value[serviceIndex]);
+    }
+
+    const service = allServices.value[serviceIndex];
+    const images = getServiceImages(service);
+
+    if (images.length <= 1) return;
+
+    serviceIntervals.value[serviceIndex] = setInterval(() => {
+        serviceImageIndices.value[serviceIndex] =
+            (serviceImageIndices.value[serviceIndex] + 1) % images.length;
+    }, 3000);
+};
+
+// ⭐ Arrêter le cycle d'images pour un service
+const stopServiceImageCycle = (serviceIndex) => {
+    if (serviceIntervals.value[serviceIndex]) {
+        clearInterval(serviceIntervals.value[serviceIndex]);
+        serviceIntervals.value[serviceIndex] = null;
+    }
+};
+
+// ⭐ Obtenir la couleur de fond pour une card
+const getCardColor = (index) => {
+    return cardColors[index % cardColors.length];
+};
+
+// ⭐ Cliquer sur une card pour la retourner
+const flipCard = (service, index) => {
+    // Arrêter le cycle d'images
+    stopServiceImageCycle(index);
+
+    if (flippedCards.value[index]) {
+        // Revenir à la face images
+        flippedCards.value[index] = false;
+        startServiceImageCycle(index);
+    } else {
+        // Passer à la face concours
+        flippedCards.value[index] = true;
+        loadServiceConcours(service, index);
+    }
+};
+
+// ⭐ Charger les concours d'un service
+const loadServiceConcours = async (service, index) => {
+    if (serviceConcours.value[service.id]) return; // Déjà chargé
+
+    loadingConcours.value[service.id] = true;
+
+    try {
+        const response = await fetch(`/api/service/${service.id}/concours`);
+        const data = await response.json();
+        serviceConcours.value[service.id] = data.concours || [];
+    } catch (error) {
+        console.error("Erreur chargement concours:", error);
+        serviceConcours.value[service.id] = [];
+    } finally {
+        loadingConcours.value[service.id] = false;
+    }
+};
+
+// ⭐ Obtenir les concours d'un service (depuis les props ou chargés)
+const getServiceConcours = (serviceId) => {
+    // D'abord chercher dans les concours déjà chargés
+    if (serviceConcours.value[serviceId]) {
+        return serviceConcours.value[serviceId];
+    }
+    // Sinon filtrer depuis les props
+    return props.concours?.filter((c) => c.service_id === serviceId) || [];
+};
+
+// ⭐ Formater la date limite
+const formatDateLimite = (dateString) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+    });
+};
+
+// Communiqués
+const showCommuniqueDialog = ref(false);
+const selectedCommunique = ref(null);
+
+// ⭐ Initialiser tous les services au montage
 onMounted(() => {
-    heroInterval = setInterval(() => {
-        currentHeroIndex.value =
-            (currentHeroIndex.value + 1) % heroTexts.length;
-    }, 5000);
-
-    // Rotation des images toutes les 4 secondes
-    imageInterval = setInterval(() => {
-        currentImageIndex.value =
-            (currentImageIndex.value + 1) % backgroundImages.length;
-    }, 4000);
+    allServices.value.forEach((_, index) => {
+        serviceImageIndices.value[index] = 0;
+        flippedCards.value[index] = false;
+        startServiceImageCycle(index);
+    });
 });
 
+// ⭐ Nettoyer les intervalles
 onUnmounted(() => {
-    if (heroInterval) clearInterval(heroInterval);
-    if (imageInterval) clearInterval(imageInterval);
+    Object.values(serviceIntervals.value).forEach((interval) => {
+        if (interval) clearInterval(interval);
+    });
 });
 
+// Utilitaires
 const getFileName = (path) => {
     if (!path) return "";
     return path.split("/").pop();
 };
 
-const getCardDelay = (index) => {
-    return { animationDelay: `${index * 0.1}s` };
+const getCardDelay = (index) => ({ animationDelay: `${index * 0.1}s` });
+
+const openCommunique = (communique) => {
+    selectedCommunique.value = communique;
+    showCommuniqueDialog.value = true;
+};
+
+const truncateText = (text, maxLength = 100) => {
+    if (!text) return "";
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+};
+
+// ⭐ URL de postulation avec concours présélectionné
+const getPostulerUrl = (concourId) => {
+    if (props.canLogin) {
+        // Si connecté, rediriger vers la page postuler avec le concours en paramètre
+        return route("candidat-postuler.index", { concour_id: concourId });
+    }
+    // Sinon, rediriger vers login
+    return route("login");
 };
 </script>
 
 <template>
-    <Head title="Accueil - Plateforme Concours DTTIA" />
+    <Head title="Accueil - Plateforme Concours FAMa" />
 
     <div
         class="min-h-screen bg-gradient-to-b from-emerald-50/50 via-white to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900"
@@ -118,8 +227,8 @@ const getCardDelay = (index) => {
                                     class="bg-white dark:bg-gray-800 rounded-full p-0.5"
                                 >
                                     <img
-                                        src="/Images/DTTIA.jpeg"
-                                        alt="DTTIA"
+                                        src="/Images/Fama.png"
+                                        alt="FAMa"
                                         class="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover transform group-hover:scale-110 transition-transform duration-300"
                                     />
                                 </div>
@@ -128,7 +237,7 @@ const getCardDelay = (index) => {
                         <div class="flex flex-col items-start">
                             <span
                                 class="text-sm md:text-xl font-black tracking-tighter text-emerald-500 leading-tight"
-                                >DTTIA</span
+                                >FAMa</span
                             >
                             <span
                                 class="text-[8px] md:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -178,97 +287,393 @@ const getCardDelay = (index) => {
         </nav>
 
         <main>
-            <!-- Hero Section avec images en arrière-plan défilantes -->
+            <!-- ⭐ NOUVEAU : Hero Section avec fond unique et cards de service -->
             <section
-                class="relative h-[90vh] min-h-[600px] flex items-center overflow-hidden"
+                class="relative min-h-screen flex items-center overflow-hidden"
             >
-                <!-- Images de fond avec transition -->
-                <div
-                    v-for="(img, index) in backgroundImages"
-                    :key="index"
-                    class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-                    :class="{
-                        'opacity-100 z-0': currentImageIndex === index,
-                        'opacity-0 z-0': currentImageIndex !== index,
-                    }"
-                >
-                    <div class="absolute inset-0 bg-black/60 z-10"></div>
+                <!-- Fond unique Fama.png -->
+                <div class="absolute inset-0">
+                    <div class="absolute inset-0 bg-black/50 z-10"></div>
                     <img
-                        :src="img"
-                        :alt="'Image ' + (index + 1)"
+                        src="/Images/FamaWell.png"
+                        alt="Fond FAMa"
                         class="w-full h-full object-cover"
                     />
                 </div>
 
                 <!-- Contenu Hero -->
                 <div
-                    class="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+                    class="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
                 >
-                    <div class="max-w-4xl mx-auto">
-                        <!-- Badge dynamique -->
-                        <div
-                            class="inline-flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-bold mb-6 animate-bounce"
+                    <!-- ⭐ Titre principal -->
+                    <div class="text-center mb-12 md:mb-16">
+                        <h1
+                            class="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-4 drop-shadow-lg mx-auto"
+                            style="
+                                color: #d1d5db;
+                                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+                            "
                         >
-                            <span
-                                class="w-2 h-2 bg-white rounded-full animate-ping"
-                            ></span>
                             Plateforme officielle des concours
-                        </div>
+                        </h1>
+                        <p
+                            class="text-lg md:text-xl drop-shadow-md text-center w-full"
+                            style="
+                                color: #9ca3af;
+                                text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
+                            "
+                        >
+                            Rejoignez la plateforme de recrutement des FAMa
+                        </p>
+                    </div>
 
-                        <!-- Texte avec transition -->
-                        <transition name="fade" mode="out-in">
-                            <div :key="currentHeroIndex" class="space-y-4">
-                                <h1
-                                    class="text-3xl md:text-5xl lg:text-6xl font-extrabold text-emerald-400 drop-shadow-lg"
-                                    style="
-                                        text-shadow: 2px 2px 4px
-                                            rgba(0, 0, 0, 0.5);
-                                    "
-                                >
-                                    {{ heroTexts[currentHeroIndex].titre }}
-                                </h1>
-                                <p
-                                    class="text-base md:text-xl text-white max-w-3xl mx-auto leading-relaxed drop-shadow-lg"
-                                    style="
-                                        text-shadow: 1px 1px 2px
-                                            rgba(0, 0, 0, 0.5);
-                                    "
-                                >
-                                    {{ heroTexts[currentHeroIndex].sousTitre }}
-                                </p>
-                            </div>
-                        </transition>
-
-                        <!-- Indicateurs de slide -->
-                        <div class="flex gap-2 justify-center mt-8">
-                            <button
-                                v-for="(_, index) in heroTexts"
-                                :key="index"
-                                @click="currentHeroIndex = index"
-                                class="h-2 rounded-full transition-all duration-300"
-                                :class="[
-                                    currentHeroIndex === index
-                                        ? 'w-8 bg-emerald-500'
-                                        : 'w-2 bg-white/60 hover:bg-emerald-400',
-                                ]"
-                            ></button>
-                        </div>
-
-                        <!-- Bouton CTA -->
-                        <div class="mt-8">
-                            <Link
-                                v-if="canRegister && !$page.props.auth.user"
-                                :href="route('register')"
-                                class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 md:px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-2xl"
+                    <!-- ⭐ Cards des services - DOUBLE FACE -->
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
+                    >
+                        <div
+                            v-for="(service, index) in allServices"
+                            :key="service.id"
+                            class="service-card-wrapper"
+                            :style="getCardDelay(index)"
+                        >
+                            <!-- Conteneur de la card avec perspective -->
+                            <div
+                                class="service-card-inner relative w-full"
+                                :class="{ 'is-flipped': flippedCards[index] }"
+                                style="perspective: 1000px; min-height: 320px"
                             >
-                                <i class="pi pi-user-plus text-lg"></i>
-                                Commencer maintenant
-                            </Link>
+                                <!-- ⭐ FACE AVANT : Images du service -->
+                                <div
+                                    class="service-card-front absolute inset-0 rounded-2xl overflow-hidden shadow-2xl transition-all duration-700"
+                                    style="
+                                        backface-visibility: hidden;
+                                        transform-style: preserve-3d;
+                                    "
+                                    @mouseenter="
+                                        !flippedCards[index] &&
+                                            startServiceImageCycle(index)
+                                    "
+                                    @mouseleave="
+                                        !flippedCards[index] &&
+                                            stopServiceImageCycle(index)
+                                    "
+                                    @click="flipCard(service, index)"
+                                >
+                                    <!-- Défilement des images -->
+                                    <div class="absolute inset-0">
+                                        <div
+                                            v-for="(
+                                                img, imgIndex
+                                            ) in getServiceImages(service)"
+                                            :key="imgIndex"
+                                            class="absolute inset-0 transition-opacity duration-700 ease-in-out"
+                                            :class="{
+                                                'opacity-100':
+                                                    serviceImageIndices[
+                                                        index
+                                                    ] === imgIndex,
+                                                'opacity-0':
+                                                    serviceImageIndices[
+                                                        index
+                                                    ] !== imgIndex,
+                                            }"
+                                        >
+                                            <img
+                                                :src="img"
+                                                :alt="service.nom"
+                                                class="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <div
+                                            class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/30"
+                                        ></div>
+                                    </div>
+
+                                    <!-- Contenu face avant -->
+                                    <div
+                                        class="relative z-10 p-6 md:p-8 h-full flex flex-col min-h-[320px]"
+                                    >
+                                        <div class="text-center mb-4">
+                                            <h3
+                                                class="text-xl md:text-2xl font-extrabold drop-shadow-lg"
+                                                style="
+                                                    background: linear-gradient(
+                                                        to right,
+                                                        #22c55e,
+                                                        #eab308,
+                                                        #ef4444
+                                                    );
+                                                    -webkit-background-clip: text;
+                                                    -webkit-text-fill-color: transparent;
+                                                    background-clip: text;
+                                                "
+                                            >
+                                                {{ service.nom }}
+                                            </h3>
+                                        </div>
+                                        <div class="flex-1"></div>
+                                        <div
+                                            class="flex gap-1.5 justify-center mb-4"
+                                        >
+                                            <span
+                                                v-for="(
+                                                    img, dotIndex
+                                                ) in getServiceImages(service)"
+                                                :key="dotIndex"
+                                                class="h-1.5 rounded-full transition-all duration-300"
+                                                :class="[
+                                                    serviceImageIndices[
+                                                        index
+                                                    ] === dotIndex
+                                                        ? 'w-6 bg-white'
+                                                        : 'w-1.5 bg-white/50',
+                                                ]"
+                                            ></span>
+                                        </div>
+                                        <p
+                                            class="text-sm md:text-base text-gray-200 line-clamp-2 drop-shadow-md text-center"
+                                        >
+                                            {{
+                                                service.description ||
+                                                "Service de recrutement"
+                                            }}
+                                        </p>
+                                        <!-- Indicateur cliquable -->
+                                        <div class="text-center mt-3">
+                                            <span
+                                                class="text-xs text-white/60 flex items-center justify-center gap-1"
+                                            >
+                                                <i
+                                                    class="pi pi-arrow-right text-[10px]"
+                                                ></i>
+                                                Cliquez pour voir les concours
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ⭐ FACE ARRIÈRE : Concours du service -->
+                                <div
+                                    class="service-card-back absolute inset-0 rounded-2xl overflow-hidden shadow-2xl transition-all duration-700"
+                                    style="
+                                        backface-visibility: hidden;
+                                        transform: rotateY(180deg);
+                                    "
+                                >
+                                    <div
+                                        class="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800"
+                                    ></div>
+
+                                    <div
+                                        class="relative z-10 p-4 md:p-6 h-full flex flex-col"
+                                    >
+                                        <!-- En-tête fixe avec bouton retour -->
+                                        <div
+                                            class="flex justify-between items-center mb-4 flex-shrink-0"
+                                        >
+                                            <h4
+                                                class="text-white font-bold text-sm md:text-base truncate flex-1 mr-2"
+                                            >
+                                                {{ service.nom }}
+                                            </h4>
+                                            <Button
+                                                icon="pi pi-arrow-left"
+                                                class="p-button-rounded p-button-text p-button-sm !text-white hover:!bg-white/20 flex-shrink-0"
+                                                @click.stop="
+                                                    flipCard(service, index)
+                                                "
+                                                v-tooltip.left="
+                                                    'Retour aux images'
+                                                "
+                                            />
+                                        </div>
+
+                                        <!-- ⭐ Zone scrollable pour les concours -->
+                                        <div
+                                            class="flex-1 overflow-y-auto pr-1 custom-scrollbar min-h-0"
+                                        >
+                                            <!-- Chargement -->
+                                            <div
+                                                v-if="
+                                                    loadingConcours[service.id]
+                                                "
+                                                class="flex items-center justify-center h-full"
+                                            >
+                                                <i
+                                                    class="pi pi-spinner pi-spin text-white text-2xl"
+                                                ></i>
+                                            </div>
+
+                                            <!-- Aucun concours -->
+                                            <div
+                                                v-else-if="
+                                                    getServiceConcours(
+                                                        service.id,
+                                                    ).length === 0
+                                                "
+                                                class="flex items-center justify-center h-full"
+                                            >
+                                                <div class="text-center">
+                                                    <i
+                                                        class="pi pi-inbox text-white/40 text-3xl mb-2"
+                                                    ></i>
+                                                    <p
+                                                        class="text-white/60 text-xs"
+                                                    >
+                                                        Aucun concours pour ce
+                                                        service
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Liste des concours -->
+                                            <div
+                                                v-else
+                                                class="flex flex-col gap-2 md:gap-3"
+                                            >
+                                                <div
+                                                    v-for="concour in getServiceConcours(
+                                                        service.id,
+                                                    )"
+                                                    :key="concour.id"
+                                                    class="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 md:p-3 border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all group"
+                                                >
+                                                    <!-- Titre -->
+                                                    <h5
+                                                        class="text-white font-semibold text-xs md:text-sm mb-1.5 line-clamp-2 group-hover:text-emerald-300 transition-colors"
+                                                    >
+                                                        {{
+                                                            concour.intitule ||
+                                                            concour.nom
+                                                        }}
+                                                    </h5>
+
+                                                    <!-- Infos -->
+                                                    <div
+                                                        class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] md:text-xs text-white/60 mb-2"
+                                                    >
+                                                        <span
+                                                            v-if="
+                                                                concour.diplome_min
+                                                            "
+                                                            class="flex items-center gap-1"
+                                                        >
+                                                            <i
+                                                                class="pi pi-book text-[10px]"
+                                                            ></i>
+                                                            {{
+                                                                concour.diplome_min
+                                                            }}
+                                                        </span>
+                                                        <span
+                                                            v-if="concour.age"
+                                                            class="flex items-center gap-1"
+                                                        >
+                                                            <i
+                                                                class="pi pi-user text-[10px]"
+                                                            ></i>
+                                                            {{ concour.age }}
+                                                            ans max
+                                                        </span>
+                                                        <span
+                                                            v-if="
+                                                                concour.date_limite
+                                                            "
+                                                            class="flex items-center gap-1"
+                                                        >
+                                                            <i
+                                                                class="pi pi-clock text-[10px]"
+                                                            ></i>
+                                                            {{
+                                                                formatDateLimite(
+                                                                    concour.date_limite,
+                                                                )
+                                                            }}
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- Bouton Postuler -->
+                                                    <div
+                                                        class="flex justify-end"
+                                                    >
+                                                        <Link
+                                                            :href="
+                                                                getPostulerUrl(
+                                                                    concour.id,
+                                                                )
+                                                            "
+                                                            class="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all shadow-lg hover:shadow-emerald-500/30 active:scale-95"
+                                                        >
+                                                            <i
+                                                                class="pi pi-send text-[10px]"
+                                                            ></i>
+                                                            Postuler
+                                                        </Link>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- ⭐ Pied de page fixe -->
+                                        <div
+                                            class="mt-2 pt-2 border-t border-white/10 flex-shrink-0"
+                                        >
+                                            <div
+                                                class="flex items-center justify-between text-[10px] text-white/40"
+                                            >
+                                                <span
+                                                    >{{
+                                                        getServiceConcours(
+                                                            service.id,
+                                                        ).length
+                                                    }}
+                                                    concours</span
+                                                >
+                                                <span
+                                                    class="flex items-center gap-1"
+                                                >
+                                                    <i
+                                                        class="pi pi-chevron-down text-[8px]"
+                                                        v-if="
+                                                            getServiceConcours(
+                                                                service.id,
+                                                            ).length > 3
+                                                        "
+                                                    ></i>
+                                                    Défilez
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Indicateurs de défilement (optionnel) -->
+                    <div class="flex gap-2 justify-center mt-8">
+                        <button
+                            v-for="(service, index) in allServices"
+                            :key="'dot-' + service.id"
+                            class="h-2 rounded-full transition-all duration-300"
+                            :class="['w-2 bg-white/40 hover:bg-white/60']"
+                        ></button>
+                    </div>
+
+                    <!-- Bouton CTA -->
+                    <div class="text-center mt-12">
+                        <Link
+                            v-if="canRegister && !$page.props.auth.user"
+                            :href="route('register')"
+                            class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold transition-all transform hover:scale-105 shadow-2xl"
+                        >
+                            <i class="pi pi-user-plus text-lg"></i>
+                            Commencer maintenant
+                        </Link>
                     </div>
                 </div>
             </section>
-
             <!-- Contenu principal -->
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
                 <!-- Section Communiqués -->
@@ -287,7 +692,8 @@ const getCardDelay = (index) => {
                         <div
                             v-for="communique in communiquesActifs"
                             :key="communique.id"
-                            class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                            class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                            @click="openCommunique(communique)"
                         >
                             <div
                                 class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-4"
@@ -317,6 +723,14 @@ const getCardDelay = (index) => {
                                     <i class="pi pi-calendar mr-1"></i>
                                     {{ communique.published_at }}
                                 </div>
+                                <!-- ⭐ Service du concours -->
+                                <div
+                                    v-if="communique.service_nom"
+                                    class="text-sm text-gray-500 dark:text-gray-400 mb-2"
+                                >
+                                    <i class="pi pi-building mr-1"></i>
+                                    Service : {{ communique.service_nom }}
+                                </div>
                                 <div
                                     class="text-sm text-gray-500 dark:text-gray-400 mb-3"
                                 >
@@ -326,7 +740,21 @@ const getCardDelay = (index) => {
                                 <div
                                     class="text-gray-600 dark:text-gray-300 whitespace-pre-wrap line-clamp-3"
                                 >
-                                    {{ communique.contenu }}
+                                    {{ truncateText(communique.contenu, 120) }}
+                                </div>
+                                <!-- ⭐ Indicateur de fichier joint -->
+                                <div
+                                    v-if="communique.fichier_url"
+                                    class="mt-3 flex items-center gap-1 text-emerald-500 text-sm"
+                                >
+                                    <i class="pi pi-paperclip"></i>
+                                    <span>Pièce jointe disponible</span>
+                                </div>
+                                <div
+                                    class="mt-3 text-emerald-500 text-sm flex items-center gap-1"
+                                >
+                                    <span>Cliquez pour voir plus</span>
+                                    <i class="pi pi-arrow-right text-xs"></i>
                                 </div>
                             </div>
                         </div>
@@ -413,6 +841,14 @@ const getCardDelay = (index) => {
                             >
                                 {{ item.intitule || item.nom }}
                             </h3>
+                            <!-- ⭐ Service du concours -->
+                            <div
+                                v-if="item.service"
+                                class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-2"
+                            >
+                                <i class="pi pi-building"></i>
+                                <span>{{ item.service.nom }}</span>
+                            </div>
                             <p
                                 class="text-gray-500 dark:text-gray-400 text-sm mb-6 line-clamp-3"
                             >
@@ -485,6 +921,12 @@ const getCardDelay = (index) => {
                                         >
                                             Concours
                                         </th>
+                                        <!-- ⭐ Colonne Service AVANT Statut -->
+                                        <th
+                                            class="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                                        >
+                                            Service
+                                        </th>
                                         <th
                                             class="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                                         >
@@ -510,6 +952,27 @@ const getCardDelay = (index) => {
                                                 class="font-semibold text-gray-800 dark:text-white text-sm md:text-base"
                                             >
                                                 {{ res.intitule }}
+                                            </div>
+                                        </td>
+                                        <!-- ⭐ Colonne Service -->
+                                        <td class="px-4 md:px-6 py-3 md:py-4">
+                                            <div
+                                                class="text-gray-600 dark:text-gray-300 text-sm"
+                                            >
+                                                <span
+                                                    v-if="res.service_nom"
+                                                    class="flex items-center gap-1"
+                                                >
+                                                    <i
+                                                        class="pi pi-building text-emerald-500 text-xs"
+                                                    ></i>
+                                                    {{ res.service_nom }}
+                                                </span>
+                                                <span
+                                                    v-else
+                                                    class="text-gray-400 italic text-xs"
+                                                    >-</span
+                                                >
                                             </div>
                                         </td>
                                         <td class="px-4 md:px-6 py-3 md:py-4">
@@ -552,7 +1015,7 @@ const getCardDelay = (index) => {
                                         "
                                     >
                                         <td
-                                            colspan="3"
+                                            colspan="4"
                                             class="px-6 py-12 text-center"
                                         >
                                             <i
@@ -604,6 +1067,92 @@ const getCardDelay = (index) => {
             </div>
         </main>
 
+        <!-- ⭐ Dialog pour afficher le contenu complet du communiqué -->
+        <Dialog
+            v-model:visible="showCommuniqueDialog"
+            :header="selectedCommunique?.titre || 'Communiqué'"
+            modal
+            :style="{ width: '90vw', maxWidth: '700px' }"
+            class="communique-dialog"
+        >
+            <div v-if="selectedCommunique" class="p-2">
+                <!-- En-tête avec métadonnées -->
+                <div
+                    class="flex flex-wrap items-center gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700"
+                >
+                    <div class="flex items-center gap-1 text-sm text-gray-500">
+                        <i class="pi pi-calendar"></i>
+                        <span>{{ selectedCommunique.published_at }}</span>
+                    </div>
+                    <div
+                        v-if="selectedCommunique.service_nom"
+                        class="flex items-center gap-1 text-sm text-gray-500"
+                    >
+                        <i class="pi pi-building"></i>
+                        <span>{{ selectedCommunique.service_nom }}</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-sm text-gray-500">
+                        <i class="pi pi-tag"></i>
+                        <span>{{ selectedCommunique.concour_intitule }}</span>
+                    </div>
+                    <Tag value="Officiel" severity="success" size="small" />
+                </div>
+
+                <!-- Contenu complet -->
+                <div class="prose prose-sm max-w-none dark:prose-invert mb-4">
+                    <p
+                        class="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed"
+                    >
+                        {{ selectedCommunique.contenu }}
+                    </p>
+                </div>
+
+                <!-- ⭐ Fichier joint -->
+                <div
+                    v-if="selectedCommunique.fichier_url"
+                    class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+                >
+                    <h4
+                        class="text-sm font-semibold mb-2 flex items-center gap-2"
+                    >
+                        <i class="pi pi-paperclip text-emerald-500"></i>
+                        Pièce jointe
+                    </h4>
+                    <a
+                        :href="selectedCommunique.fichier_url"
+                        target="_blank"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                    >
+                        <i class="pi pi-file-pdf text-red-500"></i>
+                        <span>{{
+                            selectedCommunique.fichier_nom ||
+                            "Télécharger le fichier"
+                        }}</span>
+                        <i class="pi pi-external-link text-xs"></i>
+                    </a>
+                </div>
+
+                <!-- Date limite si présente -->
+                <div
+                    v-if="selectedCommunique.date_limite"
+                    class="mt-4 text-sm text-gray-500"
+                >
+                    <i class="pi pi-clock mr-1"></i>
+                    Date limite : {{ selectedCommunique.date_limite }}
+                </div>
+            </div>
+
+            <template #footer>
+                <Button
+                    label="Fermer"
+                    icon="pi pi-times"
+                    @click="showCommuniqueDialog = false"
+                    outlined
+                    severity="secondary"
+                />
+            </template>
+        </Dialog>
+
         <!-- Footer -->
         <footer
             class="border-t border-gray-200 dark:border-gray-800 mt-12 md:mt-20 py-6 md:py-8"
@@ -611,18 +1160,40 @@ const getCardDelay = (index) => {
             <div
                 class="max-w-7xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-xs md:text-sm"
             >
-                © 2026 DTTIA Recrutement - Tous droits réservés
+                © 2026 FAMa Recrutement - Tous droits réservés
             </div>
         </footer>
     </div>
 </template>
 
 <style scoped>
-/* Animations */
+/* ============================================ */
+/* ⭐ ANIMATIONS */
+/* ============================================ */
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
     }
     to {
         opacity: 1;
@@ -645,7 +1216,21 @@ const getCardDelay = (index) => {
     opacity: 0;
 }
 
-/* Boutons personnalisés */
+/* ============================================ */
+/* ⭐ SERVICE CARDS */
+/* ============================================ */
+.service-card {
+    animation: fadeInUp 0.6s ease-out backwards;
+    cursor: pointer;
+}
+
+.service-card:hover {
+    transform: scale(1.05) translateY(-4px);
+}
+
+/* ============================================ */
+/* ⭐ BOUTONS */
+/* ============================================ */
 .btn-primary {
     @apply bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-95 inline-flex items-center;
 }
@@ -654,7 +1239,17 @@ const getCardDelay = (index) => {
     @apply border-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl font-bold transition-all duration-300 inline-flex items-center;
 }
 
-/* Line clamp */
+/* ============================================ */
+/* ⭐ LINE CLAMP */
+/* ============================================ */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -663,7 +1258,9 @@ const getCardDelay = (index) => {
     overflow: hidden;
 }
 
-/* Scrollbar */
+/* ============================================ */
+/* ⭐ SCROLLBAR */
+/* ============================================ */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -680,5 +1277,118 @@ const getCardDelay = (index) => {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #059669;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+/* ============================================ */
+/* ⭐ DIALOG COMMUNIQUÉ */
+/* ============================================ */
+:deep(.communique-dialog .p-dialog-header) {
+    background: linear-gradient(to right, #10b981, #059669);
+    color: white;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+:deep(.communique-dialog .p-dialog-header .p-dialog-title) {
+    color: white;
+    font-weight: 700;
+}
+
+:deep(.communique-dialog .p-dialog-header .p-dialog-header-icon) {
+    color: white;
+}
+
+:deep(.communique-dialog .p-dialog-header .p-dialog-header-icon:hover) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================ */
+/* ⭐ RESPONSIVE */
+/* ============================================ */
+@media (max-width: 640px) {
+    .service-card {
+        min-height: 280px;
+    }
+}
+/* ⭐ SERVICE CARDS - DOUBLE FACE */
+.service-card-wrapper {
+    perspective: 1000px;
+}
+
+.service-card-inner {
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+    min-height: 320px;
+}
+
+.service-card-inner.is-flipped {
+    transform: rotateY(180deg);
+}
+
+.service-card-front,
+.service-card-back {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.service-card-back {
+    transform: rotateY(180deg);
+}
+
+/* Scrollbar face arrière */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+/* Animation */
+.service-card-wrapper {
+    animation: fadeInUp 0.6s ease-out backwards;
+}
+/* ⭐ Amélioration scroll face arrière */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Indicateur de défilement */
+@keyframes scrollHint {
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+.pi-chevron-down {
+    animation: scrollHint 2s ease-in-out infinite;
 }
 </style>

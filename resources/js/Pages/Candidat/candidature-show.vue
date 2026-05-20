@@ -1,12 +1,14 @@
 <script setup>
-import { ref } from "vue";
-import { Head, router } from "@inertiajs/vue3";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { Head, router, useForm } from "@inertiajs/vue3";
 import AppLayout from "@/sakai/layout/AppLayout.vue";
 import Button from "primevue/button";
 import Card from "primevue/card";
 import Tag from "primevue/tag";
 import Divider from "primevue/divider";
 import Dialog from "primevue/dialog";
+import ConfirmDialog from "primevue/confirmdialog";
+import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
 import Toast from "primevue/toast";
 
@@ -19,8 +21,95 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const confirm = useConfirm();
 const showFilesDialog = ref(false);
 const selectedFiles = ref([]);
+
+// ⭐ Compte à rebours - CORRIGÉ
+const timeLeft = ref(props.candidature.time_remaining || 0);
+const isExpired = ref(false);
+let timerInterval = null;
+
+// ⭐ Formater le temps restant
+const formattedTime = computed(() => {
+    if (timeLeft.value <= 0) return "00:00:00";
+    const hours = Math.floor(timeLeft.value / 3600);
+    const minutes = Math.floor((timeLeft.value % 3600) / 60);
+    const seconds = timeLeft.value % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+});
+
+// ⭐ Le bouton est visible si on peut annuler et que le temps n'est pas écoulé
+const showCancelButton = computed(() => {
+    return props.candidature.can_cancel && timeLeft.value > 0;
+});
+
+// ⭐ Démarrer le compte à rebours
+onMounted(() => {
+    if (props.candidature.can_cancel && props.candidature.time_remaining > 0) {
+        timeLeft.value = props.candidature.time_remaining;
+        timerInterval = setInterval(() => {
+            timeLeft.value--;
+            if (timeLeft.value <= 0) {
+                timeLeft.value = 0;
+                isExpired.value = true;
+                clearInterval(timerInterval);
+            }
+        }, 1000);
+    }
+});
+
+// ⭐ Nettoyer l'intervalle
+onUnmounted(() => {
+    if (timerInterval) clearInterval(timerInterval);
+});
+// ⭐ Formulaire pour l'annulation
+const cancelForm = useForm({});
+
+// ⭐ Confirmer l'annulation
+const confirmCancel = () => {
+    confirm.require({
+        message:
+            "Êtes-vous sûr de vouloir annuler cette candidature ? Cette action est irréversible et supprimera définitivement votre dossier.",
+        header: "Confirmation d'annulation",
+        icon: "pi pi-exclamation-triangle",
+        acceptLabel: "Oui, annuler",
+        rejectLabel: "Non, conserver",
+        acceptClass: "p-button-danger",
+        accept: () => {
+            cancelForm.delete(
+                route("candidature.cancel", props.candidature.id),
+                {
+                    preserveScroll: true,
+                    onSuccess: (page) => {
+                        toast.add({
+                            severity: "success",
+                            summary: "Candidature annulée",
+                            detail:
+                                page.props.flash?.success ||
+                                "Votre candidature a été annulée avec succès.",
+                            life: 5000,
+                        });
+                        // Rediriger vers la liste
+                        setTimeout(() => {
+                            router.get(route("candidat-dossier.index"));
+                        }, 1500);
+                    },
+                    onError: (errors) => {
+                        toast.add({
+                            severity: "error",
+                            summary: "Erreur",
+                            detail:
+                                errors.error ||
+                                "Impossible d'annuler la candidature.",
+                            life: 5000,
+                        });
+                    },
+                },
+            );
+        },
+    });
+};
 
 // Statut badge
 const getStatusSeverity = (resultat) => {
@@ -36,13 +125,11 @@ const getStatusSeverity = (resultat) => {
     }
 };
 
-// Ouvrir le dialogue des fichiers
 const viewFiles = (fichiers) => {
     selectedFiles.value = fichiers;
     showFilesDialog.value = true;
 };
 
-// Imprimer le récépissé
 const printReceipt = () => {
     window.open(route("candidature.receipt", props.candidature.id), "_blank");
     toast.add({
@@ -53,30 +140,76 @@ const printReceipt = () => {
     });
 };
 
-// Retour
 const goBack = () => {
     router.get(route("candidat-dossier.index"));
 };
 
-// Diplômes possédés
 const diplomesPossedes = props.diplomes.filter((d) => d.valeur === "oui");
 
-// Troncature du texte
 const truncateText = (text, maxLength = 50) => {
     if (!text) return "";
     return text.length > maxLength
         ? text.substring(0, maxLength) + "..."
         : text;
 };
+// ⭐ Détection mobile
+const isMobile = ref(window.innerWidth < 640);
+
+const handleResize = () => {
+    isMobile.value = window.innerWidth < 640;
+};
+
+onMounted(() => {
+    window.addEventListener("resize", handleResize);
+});
+
+onUnmounted(() => {
+    window.removeEventListener("resize", handleResize);
+});
 </script>
 
 <template>
     <AppLayout>
         <Toast />
+        <ConfirmDialog />
         <Head :title="`Dossier N°${candidature.num_dossier}`" />
 
         <div class="detail-container">
-            <!-- Carte en-tête comme sur la page candidature -->
+            <!-- ⭐ Compte à rebours - Visible seulement si annulation possible -->
+            <div v-if="showCancelButton" class="countdown-banner">
+                <div class="countdown-content">
+                    <div class="countdown-info">
+                        <i class="pi pi-clock"></i>
+                        <span
+                            >Temps restant pour annuler votre candidature</span
+                        >
+                    </div>
+                    <div class="countdown-timer">{{ formattedTime }}</div>
+                    <Button
+                        label="Annuler la candidature"
+                        icon="pi pi-trash"
+                        severity="danger"
+                        size="small"
+                        :loading="cancelForm.processing"
+                        @click="confirmCancel"
+                        class="cancel-btn"
+                    />
+                </div>
+            </div>
+
+            <!-- ⭐ Message si délai expiré -->
+            <div
+                v-else-if="isExpired && candidature.resultat === 'Traitement'"
+                class="expired-banner"
+            >
+                <i class="pi pi-info-circle"></i>
+                <span
+                    >Le délai d'annulation de 24h est expiré. Vous ne pouvez
+                    plus annuler cette candidature.</span
+                >
+            </div>
+
+            <!-- Carte en-tête -->
             <div class="header-card sakai-card mb-6">
                 <div
                     class="flex flex-column md:flex-row md:align-items-center justify-content-between gap-3"
@@ -99,10 +232,12 @@ const truncateText = (text, maxLength = 50) => {
                             class="p-button-outlined p-button-sm back-btn"
                             @click="goBack"
                         />
+                        <!-- ⭐ Bouton impression - Responsive -->
                         <Button
-                            label="Imprimer le récépissé"
                             icon="pi pi-print"
+                            :label="isMobile ? '' : 'Imprimer le récépissé'"
                             class="p-button-success print-btn"
+                            :class="{ 'print-btn-mobile': isMobile }"
                             @click="printReceipt"
                         />
                     </div>
@@ -116,7 +251,7 @@ const truncateText = (text, maxLength = 50) => {
                     <!-- Carte Informations du dossier -->
                     <div class="info-card sakai-card">
                         <div class="card-header-info">
-                            <div class="card-title">
+                            <div class="card-title-inner">
                                 <i class="pi pi-info-circle"></i>
                                 <span>Informations du dossier</span>
                             </div>
@@ -145,6 +280,15 @@ const truncateText = (text, maxLength = 50) => {
                                 <span class="info-label">Date soumission</span>
                                 <span class="info-value">{{
                                     candidature.date
+                                }}</span>
+                            </div>
+                            <div
+                                v-if="candidature.has_specialites"
+                                class="info-item"
+                            >
+                                <span class="info-label">Spécialité</span>
+                                <span class="info-value">{{
+                                    candidature.specialite || "Non spécifiée"
                                 }}</span>
                             </div>
                             <div v-if="candidature.motif" class="info-item">
@@ -209,8 +353,6 @@ const truncateText = (text, maxLength = 50) => {
                             <i class="pi pi-user"></i>
                             <span>Mon profil</span>
                         </div>
-
-                        <!-- Avatar et nom -->
                         <div class="profile-header">
                             <div class="profile-avatar">
                                 <i class="pi pi-user"></i>
@@ -222,8 +364,6 @@ const truncateText = (text, maxLength = 50) => {
                                 <div class="email">{{ user.email }}</div>
                             </div>
                         </div>
-
-                        <!-- Informations personnelles -->
                         <div class="profile-info">
                             <div class="info-item">
                                 <span class="info-label">Téléphone</span>
@@ -250,10 +390,7 @@ const truncateText = (text, maxLength = 50) => {
                                 }}</span>
                             </div>
                         </div>
-
                         <Divider class="divider" />
-
-                        <!-- Permis -->
                         <div class="info-item permis-item">
                             <span class="info-label">Permis de conduire</span>
                             <Tag
@@ -264,10 +401,7 @@ const truncateText = (text, maxLength = 50) => {
                                 size="small"
                             />
                         </div>
-
                         <Divider class="divider" />
-
-                        <!-- Diplômes -->
                         <div class="diplomes-section">
                             <span class="info-label">Diplômes renseignés</span>
                             <div
@@ -290,43 +424,13 @@ const truncateText = (text, maxLength = 50) => {
                 </div>
             </div>
         </div>
-
-        <!-- Dialogue des fichiers -->
-        <Dialog
-            v-model:visible="showFilesDialog"
-            header="Documents de la candidature"
-            :modal="true"
-            :style="{ width: '90vw', maxWidth: '500px' }"
-        >
-            <div class="dialog-files-list">
-                <div
-                    v-for="file in selectedFiles"
-                    :key="file.id"
-                    class="dialog-file-item"
-                >
-                    <div class="dialog-file-info">
-                        <i class="pi pi-file-pdf"></i>
-                        <span class="doc-name">{{ fichier.type }}</span>
-                    </div>
-                    <a :href="`/storage/${file.url_fichier}`" target="_blank">
-                        <i class="pi pi-download"></i>
-                    </a>
-                </div>
-            </div>
-            <template #footer>
-                <Button
-                    label="Fermer"
-                    icon="pi pi-times"
-                    @click="showFilesDialog = false"
-                    class="p-button-text"
-                />
-            </template>
-        </Dialog>
     </AppLayout>
 </template>
 
 <style scoped>
-/* Container principal */
+/* ============================================ */
+/* CONTAINER */
+/* ============================================ */
 .detail-container {
     max-width: 1280px;
     margin: 0 auto;
@@ -339,7 +443,9 @@ const truncateText = (text, maxLength = 50) => {
     }
 }
 
-/* Carte Sakai (même style que la page candidature) */
+/* ============================================ */
+/* SAKAI CARD */
+/* ============================================ */
 .sakai-card {
     background: var(--surface-card);
     border: 1px solid var(--surface-border);
@@ -347,7 +453,9 @@ const truncateText = (text, maxLength = 50) => {
     overflow: hidden;
 }
 
-/* Carte en-tête */
+/* ============================================ */
+/* HEADER CARD */
+/* ============================================ */
 .header-card {
     padding: 1.5rem;
 }
@@ -385,31 +493,46 @@ const truncateText = (text, maxLength = 50) => {
     color: var(--text-color-secondary);
     margin: 0.25rem 0 0 0;
 }
-
-/* Boutons */
+/* ============================================ */
+/* BOUTONS - RESPONSIVE */
+/* ============================================ */
 .back-btn,
 .print-btn {
     white-space: nowrap;
 }
 
+/* ⭐ Mobile : les DEUX boutons en icône seule, même taille */
 @media (max-width: 640px) {
-    .back-btn span,
-    .print-btn span {
-        display: none;
+    .back-btn,
+    .print-btn {
+        width: 48px !important;
+        height: 48px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0;
+        border-radius: 12px !important;
+    }
+
+    .back-btn .p-button-label,
+    .print-btn .p-button-label {
+        display: none !important;
     }
 
     .back-btn .pi,
     .print-btn .pi {
-        margin-right: 0;
+        font-size: 1.5rem !important;
+        margin-right: 0 !important;
     }
 
-    .back-btn,
-    .print-btn {
-        padding: 0.5rem;
+    .flex.gap-3 {
+        gap: 0.75rem !important;
     }
 }
-
-/* Grille responsive */
+/* ============================================ */
+/* GRID RESPONSIVE */
+/* ============================================ */
 .details-grid {
     display: flex;
     flex-direction: column;
@@ -430,7 +553,9 @@ const truncateText = (text, maxLength = 50) => {
     gap: 1.5rem;
 }
 
-/* Cartes */
+/* ============================================ */
+/* CARTES */
+/* ============================================ */
 .info-card,
 .docs-card,
 .profile-card {
@@ -476,7 +601,9 @@ const truncateText = (text, maxLength = 50) => {
     border-radius: 20px;
 }
 
-/* Liste d'informations */
+/* ============================================ */
+/* INFO LIST */
+/* ============================================ */
 .info-list {
     padding: 1rem;
     display: flex;
@@ -519,7 +646,9 @@ const truncateText = (text, maxLength = 50) => {
     color: var(--text-color-secondary);
 }
 
-/* Documents */
+/* ============================================ */
+/* DOCUMENTS */
+/* ============================================ */
 .docs-list {
     padding: 1rem;
     display: flex;
@@ -603,7 +732,9 @@ const truncateText = (text, maxLength = 50) => {
     font-size: 0.875rem;
 }
 
-/* Profil */
+/* ============================================ */
+/* PROFIL */
+/* ============================================ */
 .profile-header {
     display: flex;
     align-items: center;
@@ -679,55 +810,91 @@ const truncateText = (text, maxLength = 50) => {
     margin-top: 0.5rem;
 }
 
-/* Badge statut */
 .status-badge {
     font-size: 0.7rem;
     padding: 0.25rem 0.75rem;
     white-space: nowrap;
 }
 
-/* Dialogue fichiers */
-.dialog-files-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+/* ============================================ */
+/* COUNTDOWN BANNER */
+/* ============================================ */
+.countdown-banner {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
 }
 
-.dialog-file-item {
+.countdown-content {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 0.75rem;
-    background: var(--surface-50);
+    gap: 0.75rem;
+    text-align: center;
+}
+
+@media (min-width: 768px) {
+    .countdown-content {
+        flex-direction: row;
+        justify-content: center;
+        text-align: left;
+    }
+}
+
+.countdown-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #92400e;
+}
+
+.countdown-info i {
+    color: #f59e0b;
+    font-size: 1.25rem;
+}
+
+.countdown-timer {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #92400e;
+    font-family: monospace;
+    background: rgba(245, 158, 11, 0.1);
+    padding: 0.25rem 0.75rem;
     border-radius: 8px;
 }
 
-.dialog-file-info {
+.cancel-btn {
+    white-space: nowrap;
+}
+
+/* ============================================ */
+/* EXPIRED BANNER */
+/* ============================================ */
+.expired-banner {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-    min-width: 0;
-}
-
-.dialog-file-info i {
-    color: #ef4444;
-    flex-shrink: 0;
-}
-
-.dialog-file-info span {
+    gap: 0.5rem;
     font-size: 0.8rem;
-    word-break: break-word;
-    flex: 1;
+    color: #6b7280;
 }
 
-.dialog-file-item a {
-    color: #10b981;
-    flex-shrink: 0;
-    padding: 0.5rem;
+.expired-banner i {
+    color: #9ca3af;
+    font-size: 1.1rem;
 }
 
-/* Responsive fine */
+/* ============================================ */
+/* RESPONSIVE FINE */
+/* ============================================ */
 @media (max-width: 480px) {
     .header-card {
         padding: 1rem;

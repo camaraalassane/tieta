@@ -2,7 +2,7 @@ import './bootstrap';
 import '../css/app.css';
 
 import { createApp, h } from 'vue';
-import { createInertiaApp, Link } from '@inertiajs/vue3';
+import { createInertiaApp, Link, Head } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
@@ -17,8 +17,11 @@ import Ripple from 'primevue/ripple';
 import 'primeicons/primeicons.css';
 
 createInertiaApp({
-    title: (title) => title ? `${title} - Recrutement DTTIA` : 'Recrutement DTTIA',
+    // ⭐ Titre de l'onglet
+    title: (title) => title ? `${title} - FAMa Recrutement` : 'FAMa Recrutement',
+    
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
+    
     setup({ el, App, props, plugin }) {
         const app = createApp({ render: () => h(App, props) });
 
@@ -50,8 +53,9 @@ createInertiaApp({
         // Directive ripple
         app.directive('ripple', Ripple);
 
-        // Enregistrement global du composant Link Inertia
+        // Enregistrement global des composants Inertia
         app.component('Link', Link);
+        app.component('Head', Head);  // ⭐ AJOUTÉ
 
         // Montage de l'application
         app.mount(el);

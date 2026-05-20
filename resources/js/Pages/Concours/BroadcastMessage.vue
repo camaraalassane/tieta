@@ -14,6 +14,7 @@ import Tag from "primevue/tag";
 import Toast from "primevue/toast";
 import Dialog from "primevue/dialog";
 import ProgressSpinner from "primevue/progressspinner";
+import Message from "primevue/message";
 import { useToast } from "primevue/usetoast";
 import axios from "axios";
 
@@ -21,9 +22,14 @@ const props = defineProps({
     concours: Array,
     broadcasts: Object,
     flash: Object,
+    user_role: String,
+    is_superadmin: Boolean,
+    is_gerant: Boolean,
+    is_admin: Boolean,
 });
 
 const toast = useToast();
+
 const form = useForm({
     concour_id: null,
     subject: "",
@@ -53,7 +59,7 @@ const previewMessage = async () => {
         });
         return;
     }
-    
+
     if (!form.message || form.message.trim().length < 3) {
         toast.add({
             severity: "warn",
@@ -90,24 +96,24 @@ const confirmSend = () => {
 const sendBroadcast = () => {
     sending.value = true;
     showConfirmDialog.value = false;
-    
+
     form.post(route("broadcast.send"), {
         preserveScroll: true,
         onSuccess: () => {
             sending.value = false;
             form.reset();
             showPreview.value = false;
-            
+
             toast.add({
                 severity: "success",
                 summary: "Diffusion envoyée !",
-                detail: `Message envoyé avec succès à ${previewData.value?.candidats_count || 'tous'} candidats`,
+                detail: "Message envoyé avec succès",
                 life: 5000,
                 closable: true,
             });
-            
+
             setTimeout(() => {
-                router.reload({ only: ['broadcasts'] });
+                router.reload({ only: ["broadcasts"] });
             }, 1500);
         },
         onError: (errors) => {
@@ -135,17 +141,43 @@ const resetForm = () => {
         <Toast position="top-right" />
 
         <div class="broadcast-page">
-            <!-- En-tête harmonisé avec les autres pages -->
+            <!-- En-tête -->
             <div class="page-header-card">
                 <div class="page-header-content">
                     <i class="pi pi-megaphone page-header-icon"></i>
                     <div class="page-header-text">
                         <h1 class="page-header-title">Diffusion de messages</h1>
                         <p class="page-header-subtitle">
-                            Envoyez un message à tous les candidats d'un concours spécifique
+                            Envoyez un message à tous les candidats d'un
+                            concours spécifique
                         </p>
                     </div>
                 </div>
+            </div>
+
+            <!-- Messages d'information selon le rôle -->
+            <div v-if="is_admin" class="info-message mb-4">
+                <Message severity="info" :closable="false">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-info-circle"></i>
+                        <span
+                            >Vous pouvez envoyer des messages uniquement aux
+                            concours où vous êtes assigné.</span
+                        >
+                    </div>
+                </Message>
+            </div>
+
+            <div v-if="is_gerant" class="info-message mb-4">
+                <Message severity="success" :closable="false">
+                    <div class="flex align-items-center gap-2">
+                        <i class="pi pi-check-circle"></i>
+                        <span
+                            >Vous pouvez envoyer des messages à tous les
+                            concours de votre service.</span
+                        >
+                    </div>
+                </Message>
             </div>
 
             <div class="broadcast-grid">
@@ -155,14 +187,17 @@ const resetForm = () => {
                         <template #title>
                             <div class="card-title-wrapper">
                                 <i class="pi pi-send card-title-icon"></i>
-                                <span class="card-title-text">Nouvelle diffusion</span>
+                                <span class="card-title-text"
+                                    >Nouvelle diffusion</span
+                                >
                             </div>
                         </template>
                         <template #content>
                             <div class="form-container">
                                 <div class="form-field">
                                     <label class="form-label">
-                                        Concours <span class="required-star">*</span>
+                                        Concours
+                                        <span class="required-star">*</span>
                                     </label>
                                     <Select
                                         v-model="form.concour_id"
@@ -170,16 +205,23 @@ const resetForm = () => {
                                         optionLabel="intitule"
                                         optionValue="id"
                                         placeholder="Choisir un concours..."
-                                        :class="{ 'p-invalid': form.errors.concour_id }"
+                                        :class="{
+                                            'p-invalid': form.errors.concour_id,
+                                        }"
                                         class="w-full"
                                     />
-                                    <small class="p-error" v-if="form.errors.concour_id">
+                                    <small
+                                        class="p-error"
+                                        v-if="form.errors.concour_id"
+                                    >
                                         {{ form.errors.concour_id }}
                                     </small>
                                 </div>
 
                                 <div class="form-field">
-                                    <label class="form-label">Objet (optionnel)</label>
+                                    <label class="form-label"
+                                        >Objet (optionnel)</label
+                                    >
                                     <InputText
                                         v-model="form.subject"
                                         placeholder="Ex: Information importante concernant le concours"
@@ -189,20 +231,27 @@ const resetForm = () => {
 
                                 <div class="form-field">
                                     <label class="form-label">
-                                        Message <span class="required-star">*</span>
+                                        Message
+                                        <span class="required-star">*</span>
                                     </label>
                                     <Textarea
                                         v-model="form.message"
                                         rows="6"
                                         placeholder="Écrivez votre message ici..."
-                                        :class="{ 'p-invalid': form.errors.message }"
+                                        :class="{
+                                            'p-invalid': form.errors.message,
+                                        }"
                                         class="w-full"
                                     />
                                     <small class="form-hint">
                                         <i class="pi pi-info-circle"></i>
-                                        Ce message sera envoyé à tous les candidats de ce concours
+                                        Ce message sera envoyé à tous les
+                                        candidats de ce concours
                                     </small>
-                                    <small class="p-error" v-if="form.errors.message">
+                                    <small
+                                        class="p-error"
+                                        v-if="form.errors.message"
+                                    >
                                         {{ form.errors.message }}
                                     </small>
                                 </div>
@@ -213,14 +262,22 @@ const resetForm = () => {
                                         icon="pi pi-eye"
                                         class="p-button-outlined preview-button"
                                         @click="previewMessage"
-                                        :disabled="!form.concour_id || !form.message"
+                                        :disabled="
+                                            !form.concour_id || !form.message
+                                        "
                                     />
+                                    <!-- ⭐ Bouton Envoyer - Dynamique -->
                                     <Button
                                         label="Envoyer"
                                         icon="pi pi-send"
-                                        class="p-button-primary send-button"
+                                        class="btn-send send-button"
                                         @click="confirmSend"
-                                        :disabled="!form.concour_id || !form.message || sending"
+                                        :disabled="
+                                            !form.concour_id ||
+                                            !form.message ||
+                                            sending
+                                        "
+                                        :loading="sending"
                                     />
                                 </div>
                             </div>
@@ -228,27 +285,27 @@ const resetForm = () => {
                     </Card>
                 </div>
 
-                <!-- Prévisualisation -->
+                <!-- ⭐ Prévisualisation - sans nombre de candidats -->
                 <div class="broadcast-preview-col" v-if="showPreview">
                     <Card class="broadcast-card preview-card-animate">
                         <template #title>
                             <div class="card-title-wrapper">
                                 <i class="pi pi-eye card-title-icon"></i>
-                                <span class="card-title-text">Prévisualisation</span>
+                                <span class="card-title-text"
+                                    >Prévisualisation</span
+                                >
                             </div>
                         </template>
-                        <template #content">
+                        <template #content>
                             <div v-if="previewData">
                                 <div class="preview-info-box">
                                     <div class="preview-info-row">
-                                        <span class="preview-info-label">Concours :</span>
-                                        <span class="preview-info-value">{{ previewData.concour }}</span>
-                                    </div>
-                                    <div class="preview-info-row">
-                                        <span class="preview-info-label">Destinataires :</span>
-                                        <span class="preview-info-value preview-info-highlight">
-                                            {{ previewData.candidats_count }} candidat(s)
-                                        </span>
+                                        <span class="preview-info-label"
+                                            >Concours :</span
+                                        >
+                                        <span class="preview-info-value">{{
+                                            previewData.concour
+                                        }}</span>
                                     </div>
                                 </div>
 
@@ -256,7 +313,9 @@ const resetForm = () => {
 
                                 <div class="preview-message-box">
                                     <div class="preview-message-subject">
-                                        {{ previewData.subject || "Sans objet" }}
+                                        {{
+                                            previewData.subject || "Sans objet"
+                                        }}
                                     </div>
                                     <div class="preview-message-content">
                                         {{ previewData.message }}
@@ -284,17 +343,19 @@ const resetForm = () => {
                     </Card>
                 </div>
 
-                <!-- Historique des diffusions - Version responsive -->
+                <!-- Historique des diffusions -->
                 <div class="broadcast-history-col">
                     <Card class="broadcast-card">
                         <template #title>
                             <div class="card-title-wrapper">
                                 <i class="pi pi-history card-title-icon"></i>
-                                <span class="card-title-text">Historique des diffusions</span>
+                                <span class="card-title-text"
+                                    >Historique des diffusions</span
+                                >
                             </div>
                         </template>
                         <template #content>
-                            <!-- Version Desktop - Tableau -->
+                            <!-- Version Desktop -->
                             <div class="history-desktop">
                                 <DataTable
                                     :value="broadcasts.data"
@@ -303,79 +364,159 @@ const resetForm = () => {
                                     class="broadcast-table"
                                     responsiveLayout="scroll"
                                 >
-                                    <Column field="created_at" header="Date" :sortable="true">
+                                    <Column
+                                        field="created_at"
+                                        header="Date"
+                                        :sortable="true"
+                                    >
                                         <template #body="{ data }">
-                                            <span class="date-cell">{{ formatDate(data.created_at) }}</span>
+                                            <span class="date-cell">{{
+                                                formatDate(data.created_at)
+                                            }}</span>
                                         </template>
                                     </Column>
-                                    <Column field="concour.intitule" header="Concours" :sortable="true">
+                                    <Column
+                                        field="concour.intitule"
+                                        header="Concours"
+                                        :sortable="true"
+                                    >
                                         <template #body="{ data }">
-                                            <span class="concour-cell">{{ data.concour?.intitule || '-' }}</span>
+                                            <span class="concour-cell">{{
+                                                data.concour?.intitule || "-"
+                                            }}</span>
                                         </template>
                                     </Column>
-                                    <Column field="broadcast_subject" header="Objet">
+                                    <Column
+                                        field="broadcast_subject"
+                                        header="Objet"
+                                    >
                                         <template #body="{ data }">
-                                            <span class="subject-cell">{{ data.broadcast_subject || data.objet || '-' }}</span>
+                                            <span class="subject-cell">{{
+                                                data.broadcast_subject ||
+                                                data.objet ||
+                                                "-"
+                                            }}</span>
                                         </template>
                                     </Column>
                                     <Column field="texte" header="Message">
                                         <template #body="{ data }">
-                                            <span class="message-cell">{{ data.texte.substring(0, 50) }}...</span>
+                                            <span class="message-cell"
+                                                >{{
+                                                    data.texte.substring(0, 50)
+                                                }}...</span
+                                            >
                                         </template>
                                     </Column>
-                                    <Column field="emetteur.name" header="Envoyé par" />
+                                    <Column
+                                        field="emetteur.name"
+                                        header="Envoyé par"
+                                    />
                                     <Column header="Statut">
                                         <template #body>
-                                            <Tag value="Envoyé" severity="success" icon="pi pi-check" />
+                                            <Tag
+                                                value="Envoyé"
+                                                severity="success"
+                                                icon="pi pi-check"
+                                            />
                                         </template>
                                     </Column>
                                 </DataTable>
                             </div>
 
-                            <!-- Version Mobile - Cartes -->
+                            <!-- Version Mobile -->
                             <div class="history-mobile">
-                                <div v-if="broadcasts.data?.length === 0" class="empty-history">
+                                <div
+                                    v-if="broadcasts.data?.length === 0"
+                                    class="empty-history"
+                                >
                                     <i class="pi pi-inbox"></i>
                                     <p>Aucune diffusion effectuée</p>
                                 </div>
-                                <div v-for="item in broadcasts.data" :key="item.id" class="history-card-item">
+                                <div
+                                    v-for="item in broadcasts.data"
+                                    :key="item.id"
+                                    class="history-card-item"
+                                >
                                     <div class="history-card-header">
                                         <div class="history-card-date">
                                             <i class="pi pi-calendar"></i>
-                                            <span>{{ formatDate(item.created_at) }}</span>
+                                            <span>{{
+                                                formatDate(item.created_at)
+                                            }}</span>
                                         </div>
-                                        <Tag value="Envoyé" severity="success" size="small" />
+                                        <Tag
+                                            value="Envoyé"
+                                            severity="success"
+                                            size="small"
+                                        />
                                     </div>
                                     <div class="history-card-body">
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Concours :</span>
-                                            <span class="history-card-value">{{ item.concour?.intitule || '-' }}</span>
+                                            <span class="history-card-label"
+                                                >Concours :</span
+                                            >
+                                            <span class="history-card-value">{{
+                                                item.concour?.intitule || "-"
+                                            }}</span>
                                         </div>
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Objet :</span>
-                                            <span class="history-card-value">{{ item.broadcast_subject || item.objet || '-' }}</span>
+                                            <span class="history-card-label"
+                                                >Objet :</span
+                                            >
+                                            <span class="history-card-value">{{
+                                                item.broadcast_subject ||
+                                                item.objet ||
+                                                "-"
+                                            }}</span>
                                         </div>
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Message :</span>
-                                            <span class="history-card-value message-preview-mobile">{{ item.texte }}</span>
+                                            <span class="history-card-label"
+                                                >Message :</span
+                                            >
+                                            <span
+                                                class="history-card-value message-preview-mobile"
+                                                >{{ item.texte }}</span
+                                            >
                                         </div>
                                         <div class="history-card-row">
-                                            <span class="history-card-label">Envoyé par :</span>
-                                            <span class="history-card-value">{{ item.emetteur?.name || '-' }}</span>
+                                            <span class="history-card-label"
+                                                >Envoyé par :</span
+                                            >
+                                            <span class="history-card-value">{{
+                                                item.emetteur?.name || "-"
+                                            }}</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="history-pagination-mobile" v-if="broadcasts.last_page > 1">
-                                    <Button 
-                                        icon="pi pi-chevron-left" 
-                                        class="p-button-text" 
+                                <div
+                                    class="history-pagination-mobile"
+                                    v-if="broadcasts.last_page > 1"
+                                >
+                                    <!-- ⭐ Bouton Page précédente - Dynamique -->
+                                    <Button
+                                        icon="pi pi-chevron-left"
+                                        class="pagination-nav-btn"
                                         :disabled="!broadcasts.prev_page_url"
+                                        @click="
+                                            goToPage(
+                                                broadcasts.current_page - 1,
+                                            )
+                                        "
                                     />
-                                    <span>Page {{ broadcasts.current_page }} / {{ broadcasts.last_page }}</span>
-                                    <Button 
-                                        icon="pi pi-chevron-right" 
-                                        class="p-button-text" 
+                                    <span class="pagination-info">
+                                        Page {{ broadcasts.current_page }} /
+                                        {{ broadcasts.last_page }}
+                                    </span>
+                                    <!-- ⭐ Bouton Page suivante - Dynamique -->
+                                    <Button
+                                        icon="pi pi-chevron-right"
+                                        class="pagination-nav-btn"
                                         :disabled="!broadcasts.next_page_url"
+                                        @click="
+                                            goToPage(
+                                                broadcasts.current_page + 1,
+                                            )
+                                        "
                                     />
                                 </div>
                             </div>
@@ -385,7 +526,7 @@ const resetForm = () => {
             </div>
         </div>
 
-        <!-- Modal de confirmation -->
+        <!-- ⭐ Modal de confirmation - sans nombre de candidats -->
         <Dialog
             v-model:visible="showConfirmDialog"
             header="Confirmation d'envoi"
@@ -400,12 +541,18 @@ const resetForm = () => {
                     <i class="pi pi-question-circle"></i>
                 </div>
                 <div class="confirm-text">
-                    <p>Vous êtes sur le point d'envoyer ce message à :</p>
+                    <p>
+                        Vous êtes sur le point d'envoyer ce message à tous les
+                        candidats du concours :
+                    </p>
                     <div class="confirm-details">
-                        <strong>{{ previewData?.concour || 'ce concours' }}</strong>
-                        <span class="confirm-badge">{{ previewData?.candidats_count || 0 }} candidat(s)</span>
+                        <strong>{{
+                            previewData?.concour || "ce concours"
+                        }}</strong>
                     </div>
-                    <p class="confirm-warning">Cette action est irréversible.</p>
+                    <p class="confirm-warning">
+                        Cette action est irréversible.
+                    </p>
                 </div>
             </div>
             <template #footer>
@@ -436,13 +583,22 @@ const resetForm = () => {
 </template>
 
 <style scoped>
+/* ============================================ */
+/* ⭐ CONTAINER */
+/* ============================================ */
 .broadcast-page {
     padding: 1rem;
 }
 
-/* En-tête harmonisé */
+/* ============================================ */
+/* ⭐ EN-TÊTE - DYNAMIQUE */
+/* ============================================ */
 .page-header-card {
-    background: linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%);
+    background: linear-gradient(
+        135deg,
+        var(--color-primary) 0%,
+        var(--color-primary-dark) 100%
+    );
     border-radius: 1rem;
     margin-bottom: 1.5rem;
     padding: 1.25rem 1.5rem;
@@ -478,7 +634,16 @@ const resetForm = () => {
     opacity: 0.9;
 }
 
-/* Grille responsive */
+/* ============================================ */
+/* ⭐ MESSAGES */
+/* ============================================ */
+.info-message {
+    margin-bottom: 1rem;
+}
+
+/* ============================================ */
+/* ⭐ GRILLE */
+/* ============================================ */
 .broadcast-grid {
     display: flex;
     flex-direction: column;
@@ -491,7 +656,9 @@ const resetForm = () => {
     width: 100%;
 }
 
-/* Cartes */
+/* ============================================ */
+/* ⭐ CARTES */
+/* ============================================ */
 .broadcast-card {
     border-radius: 1rem;
     overflow: hidden;
@@ -503,8 +670,9 @@ const resetForm = () => {
     gap: 0.5rem;
 }
 
+/* ⭐ Icône titre carte - Dynamique */
 .card-title-icon {
-    color: rgb(16, 185, 129);
+    color: var(--color-primary);
     font-size: 1.2rem;
 }
 
@@ -513,7 +681,9 @@ const resetForm = () => {
     font-size: 1rem;
 }
 
-/* Formulaire */
+/* ============================================ */
+/* ⭐ FORMULAIRE */
+/* ============================================ */
 .form-container {
     display: flex;
     flex-direction: column;
@@ -552,7 +722,9 @@ const resetForm = () => {
     margin-top: 0.5rem;
 }
 
-/* Prévisualisation */
+/* ============================================ */
+/* ⭐ PRÉVISUALISATION - DYNAMIQUE */
+/* ============================================ */
 .preview-info-box {
     background: var(--surface-50);
     padding: 1rem;
@@ -581,7 +753,7 @@ const resetForm = () => {
 }
 
 .preview-info-highlight {
-    color: rgb(16, 185, 129);
+    color: var(--color-primary);
     font-weight: 700;
 }
 
@@ -593,7 +765,7 @@ const resetForm = () => {
 
 .preview-message-subject {
     font-weight: 700;
-    color: rgb(16, 185, 129);
+    color: var(--color-primary);
     margin-bottom: 0.5rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--surface-border);
@@ -617,7 +789,9 @@ const resetForm = () => {
     animation: fadeIn 0.3s ease;
 }
 
-/* Historique Desktop */
+/* ============================================ */
+/* ⭐ HISTORIQUE */
+/* ============================================ */
 .history-desktop {
     display: block;
 }
@@ -645,7 +819,9 @@ const resetForm = () => {
     text-overflow: ellipsis;
 }
 
-/* Historique Mobile */
+/* ============================================ */
+/* ⭐ HISTORIQUE MOBILE */
+/* ============================================ */
 .history-card-item {
     background: var(--surface-card);
     border: 1px solid var(--surface-border);
@@ -659,7 +835,7 @@ const resetForm = () => {
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem;
-    background: var(--surface-50);
+    background: var(--color-primary-light);
     border-bottom: 1px solid var(--surface-border);
 }
 
@@ -668,7 +844,7 @@ const resetForm = () => {
     align-items: center;
     gap: 0.5rem;
     font-size: 0.7rem;
-    color: var(--text-color-secondary);
+    color: var(--color-primary-dark);
 }
 
 .history-card-body {
@@ -725,9 +901,15 @@ const resetForm = () => {
     opacity: 0.5;
 }
 
-/* Modal confirmation */
+/* ============================================ */
+/* ⭐ MODAL CONFIRMATION - DYNAMIQUE */
+/* ============================================ */
 .confirm-dialog :deep(.p-dialog-header) {
-    background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+    background: linear-gradient(
+        135deg,
+        var(--color-primary-light) 0%,
+        #fff 100%
+    );
 }
 
 .confirm-content {
@@ -739,7 +921,7 @@ const resetForm = () => {
 
 .confirm-icon {
     font-size: 2.5rem;
-    color: #f59e0b;
+    color: var(--color-primary);
 }
 
 .confirm-text {
@@ -752,19 +934,19 @@ const resetForm = () => {
 }
 
 .confirm-details {
-    background: #fef3c7;
+    background: var(--color-primary-light);
     padding: 0.75rem;
     border-radius: 0.5rem;
     margin: 0.5rem 0;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
 }
 
 .confirm-badge {
-    background: rgb(16, 185, 129);
+    background: var(--color-primary);
     color: white;
     padding: 0.25rem 0.5rem;
     border-radius: 1rem;
@@ -782,7 +964,9 @@ const resetForm = () => {
     gap: 0.5rem;
 }
 
-/* Loader */
+/* ============================================ */
+/* ⭐ LOADER */
+/* ============================================ */
 .loader-overlay {
     position: fixed;
     top: 0;
@@ -804,7 +988,87 @@ const resetForm = () => {
     font-weight: 500;
 }
 
-/* Animations */
+/* ============================================ */
+/* ⭐ FOCUS & BOUTONS GLOBAL */
+/* ============================================ */
+:deep(.p-inputtext:focus),
+:deep(.p-select:focus),
+:deep(.p-dropdown:focus),
+:deep(.p-textarea:focus),
+:deep(.p-editor:focus) {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px var(--color-primary-light) !important;
+}
+
+:deep(.p-button.p-button-success) {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+:deep(.p-button.p-button-success:hover) {
+    background: var(--color-primary-dark) !important;
+    border-color: var(--color-primary-dark) !important;
+}
+
+:deep(.p-button.p-button-outlined) {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+:deep(.p-button.p-button-outlined:hover) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+
+:deep(.p-button.p-button-text) {
+    color: var(--color-primary) !important;
+}
+
+:deep(.p-button.p-button-text:hover) {
+    background: var(--color-primary-light) !important;
+}
+
+/* ⭐ Checkbox */
+:deep(.p-checkbox .p-checkbox-box.p-highlight) {
+    border-color: var(--color-primary) !important;
+    background: var(--color-primary) !important;
+}
+
+/* ⭐ Dropdown highlight */
+:deep(.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+
+/* ⭐ Tags */
+:deep(.p-tag.p-tag-success) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+
+/* ⭐ Badges */
+:deep(.p-badge.p-badge-success) {
+    background: var(--color-primary) !important;
+}
+
+/* ⭐ Datatable */
+:deep(.p-datatable .p-datatable-tbody > tr:hover) {
+    background: var(--color-primary-light) !important;
+}
+
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+    border-bottom: 2px solid var(--color-primary-light);
+}
+
+/* ⭐ Pagination */
+:deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+/* ============================================ */
+/* ⭐ ANIMATIONS */
+/* ============================================ */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -816,30 +1080,56 @@ const resetForm = () => {
     }
 }
 
-/* Responsive */
+.page-header-card,
+.broadcast-card {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* ============================================ */
+/* ⭐ DARK MODE */
+/* ============================================ */
+.dark .confirm-dialog :deep(.p-dialog-header) {
+    background: linear-gradient(
+        135deg,
+        rgba(16, 185, 129, 0.15) 0%,
+        #1f2937 100%
+    );
+}
+
+.dark .history-card-header {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.dark .confirm-details {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+/* ============================================ */
+/* ⭐ RESPONSIVE */
+/* ============================================ */
 @media (min-width: 768px) {
     .broadcast-page {
         padding: 1.5rem;
     }
-    
+
     .page-header-card {
         padding: 1.5rem 2rem;
     }
-    
+
     .page-header-title {
         font-size: 1.5rem;
     }
-    
+
     .page-header-subtitle {
         font-size: 0.9rem;
     }
-    
+
     .broadcast-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1.5rem;
     }
-    
+
     .broadcast-history-col {
         grid-column: span 2;
     }
@@ -849,7 +1139,7 @@ const resetForm = () => {
     .broadcast-grid {
         grid-template-columns: 1fr 1fr;
     }
-    
+
     .broadcast-history-col {
         grid-column: span 2;
     }
@@ -859,30 +1149,30 @@ const resetForm = () => {
     .history-desktop {
         display: none;
     }
-    
+
     .history-mobile {
         display: block;
     }
-    
+
     .form-actions {
         flex-direction: column;
     }
-    
+
     .preview-button,
     .send-button {
         width: 100%;
     }
-    
+
     .preview-info-row {
         flex-direction: column;
         gap: 0.25rem;
     }
-    
+
     .confirm-content {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .confirm-details {
         flex-direction: column;
     }
@@ -892,27 +1182,118 @@ const resetForm = () => {
     .page-header-card {
         padding: 1rem;
     }
-    
+
     .page-header-icon {
         font-size: 1.5rem;
         padding: 0.5rem;
     }
-    
+
     .page-header-title {
         font-size: 1rem;
     }
-    
+
     .page-header-subtitle {
         font-size: 0.7rem;
     }
-    
+
     .history-card-label {
         width: 70px;
         font-size: 0.75rem;
     }
-    
+
     .history-card-value {
         font-size: 0.75rem;
+    }
+}
+/* ============================================ */
+/* ⭐ PAGINATION MOBILE - DYNAMIQUE */
+/* ============================================ */
+.history-pagination-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.pagination-info {
+    font-weight: 500;
+    color: var(--color-primary-dark);
+    min-width: 80px;
+    text-align: center;
+}
+
+/* ⭐ Boutons de navigation pagination */
+.pagination-nav-btn {
+    color: var(--color-primary) !important;
+    background: transparent !important;
+    border: 1px solid var(--color-primary-light) !important;
+    border-radius: 0.5rem !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    transition: all 0.2s ease;
+}
+
+.pagination-nav-btn:hover:not(:disabled) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+    border-color: var(--color-primary) !important;
+}
+
+.pagination-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Dark mode */
+.dark .pagination-info {
+    color: var(--color-primary-light);
+}
+
+.dark .pagination-nav-btn {
+    border-color: rgba(16, 185, 129, 0.2) !important;
+    color: var(--color-primary-light) !important;
+}
+
+.dark .pagination-nav-btn:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: var(--color-primary) !important;
+}
+/* ⭐ Bouton Envoyer - Dynamique */
+.btn-send {
+    background: var(--color-primary) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-send:hover:not(:disabled) {
+    background: var(--color-primary-dark) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-send:focus {
+    box-shadow: 0 0 0 3px var(--color-primary-light) !important;
+}
+
+.btn-send:disabled {
+    background: #9ca3af !important;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.7;
+}
+
+/* Version mobile */
+@media (max-width: 767px) {
+    .btn-send {
+        width: 100%;
+        justify-content: center;
     }
 }
 </style>

@@ -23,7 +23,6 @@ const can = (permissions) => {
     const user = page.props.auth?.user;
     if (!user) return false;
     if (user.is_superadmin) return true;
-
     const userPermissions = user.permissions || [];
     const searchPermissions = Array.isArray(permissions)
         ? permissions
@@ -33,18 +32,13 @@ const can = (permissions) => {
 
 const handleClick = () => {
     if (props.item.disabled) return;
-
-    // Pour les items avec sous-menus
     if (props.item.items) {
         isExpanded.value = !isExpanded.value;
         return;
     }
-
-    // Pour les liens, on laisse le Link faire son travail
     if (props.item.command) {
         props.item.command({ item: props.item });
     }
-
     setActiveMenuItem(`${props.sectionIndex}-${props.index}`);
 };
 
@@ -74,12 +68,12 @@ const badgeClass = computed(() => {
         >
             <i :class="['pi', item.icon, 'menu-icon-small']"></i>
             <span class="menu-label-small">{{ item.label }}</span>
-            <span v-if="item.badge" :class="['menu-badge-small', badgeClass]">
-                {{ item.badge }}
-            </span>
-            <span v-if="item.description" class="menu-tooltip-small">
-                {{ item.description }}
-            </span>
+            <span v-if="item.badge" :class="['menu-badge-small', badgeClass]">{{
+                item.badge
+            }}</span>
+            <span v-if="item.description" class="menu-tooltip-small">{{
+                item.description
+            }}</span>
         </Link>
 
         <div
@@ -89,9 +83,9 @@ const badgeClass = computed(() => {
         >
             <i :class="['pi', item.icon, 'menu-icon-small']"></i>
             <span class="menu-label-small">{{ item.label }}</span>
-            <span v-if="item.badge" :class="['menu-badge-small', badgeClass]">
-                {{ item.badge }}
-            </span>
+            <span v-if="item.badge" :class="['menu-badge-small', badgeClass]">{{
+                item.badge
+            }}</span>
             <i
                 class="pi pi-chevron-down menu-arrow-small"
                 :class="{ rotated: isExpanded }"
@@ -134,16 +128,39 @@ const badgeClass = computed(() => {
     position: relative;
 
     &:hover {
-        background: rgba(16, 185, 129, 0.05);
+        background: var(--color-primary-light);
 
         .menu-icon-small {
-            color: #10b981;
+            color: var(--color-primary);
+        }
+
+        .menu-label-small {
+            color: var(--color-primary-dark);
         }
 
         .menu-tooltip-small {
             opacity: 1;
             transform: translateX(-4px);
         }
+    }
+}
+
+/* ⭐ MODE NUIT - Hover */
+.dark .menu-link-compact:hover,
+.dark .menu-parent-compact:hover {
+    background: rgba(16, 185, 129, 0.15);
+
+    .menu-icon-small {
+        color: var(--color-primary) !important;
+    }
+
+    .menu-label-small {
+        color: #e2e8f0 !important;
+        font-weight: 600;
+    }
+
+    .menu-arrow-small {
+        color: var(--color-primary) !important;
     }
 }
 
@@ -163,6 +180,15 @@ const badgeClass = computed(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* ⭐ MODE NUIT - Labels visibles */
+.dark .menu-label-small {
+    color: #cbd5e1;
+}
+
+.dark .menu-icon-small {
+    color: #94a3b8;
 }
 
 .menu-badge-small {
@@ -186,8 +212,12 @@ const badgeClass = computed(() => {
 
     &.rotated {
         transform: rotate(180deg);
-        color: #10b981;
+        color: var(--color-primary);
     }
+}
+
+.dark .menu-arrow-small {
+    color: #94a3b8;
 }
 
 .menu-tooltip-small {
@@ -209,14 +239,21 @@ const badgeClass = computed(() => {
     z-index: 1000;
 }
 
+.dark .menu-tooltip-small {
+    background: #334155;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+/* ⭐ ITEM ACTIF */
 .menu-item-compact.active {
     > .menu-link-compact,
     > .menu-parent-compact {
-        background: rgba(16, 185, 129, 0.1);
+        background: var(--color-primary-light);
 
         .menu-icon-small,
         .menu-label-small {
-            color: #10b981;
+            color: var(--color-primary);
             font-weight: 600;
         }
 
@@ -227,8 +264,21 @@ const badgeClass = computed(() => {
             top: 2px;
             bottom: 2px;
             width: 2px;
-            background: #10b981;
+            background: var(--color-primary);
             border-radius: 0 2px 2px 0;
+        }
+    }
+}
+
+/* ⭐ MODE NUIT - Item actif */
+.dark .menu-item-compact.active {
+    > .menu-link-compact,
+    > .menu-parent-compact {
+        background: rgba(16, 185, 129, 0.15);
+
+        .menu-icon-small,
+        .menu-label-small {
+            color: var(--color-primary) !important;
         }
     }
 }
@@ -250,6 +300,17 @@ const badgeClass = computed(() => {
     }
 }
 
+/* ⭐ MODE NUIT - Sous-menu */
+.dark .submenu-items-compact {
+    :deep(.menu-label-small) {
+        color: #cbd5e1;
+    }
+
+    :deep(.menu-icon-small) {
+        color: #94a3b8;
+    }
+}
+
 .submenu-compact-enter-active,
 .submenu-compact-leave-active {
     transition: all 0.2s ease;
@@ -268,14 +329,5 @@ const badgeClass = computed(() => {
     max-height: 300px;
     opacity: 1;
     transform: translateX(0);
-}
-
-.dark {
-    .menu-item-compact.active {
-        > .menu-link-compact,
-        > .menu-parent-compact {
-            background: rgba(16, 185, 129, 0.15);
-        }
-    }
 }
 </style>

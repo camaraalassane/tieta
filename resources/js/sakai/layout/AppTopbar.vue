@@ -8,25 +8,123 @@ import DropdownLink from "@/Components/DropdownLink.vue";
 import AppMenu from "./AppMenu.vue";
 import axios from "axios";
 
-const { onMenuToggle, toggleDarkMode, isDarkTheme, layoutState, resetMenu } =
-    useLayout();
+// ⭐ 1. PAGE EN PREMIER
 const page = usePage();
+const { onMenuToggle, layoutState, resetMenu } = useLayout();
 
-// État local
+// ⭐ 2. PALETTE DE COULEURS
+const colorPalette = [
+    { name: "Émeraude", value: "emerald", bg: "bg-emerald-500" },
+    { name: "Bleu", value: "blue", bg: "bg-blue-500" },
+    { name: "Violet", value: "purple", bg: "bg-purple-500" },
+    { name: "Orange", value: "orange", bg: "bg-orange-500" },
+    { name: "Rose", value: "pink", bg: "bg-pink-500" },
+    { name: "Rouge", value: "red", bg: "bg-red-500" },
+    { name: "Cyan", value: "cyan", bg: "bg-cyan-500" },
+    { name: "Ambre", value: "amber", bg: "bg-amber-500" },
+];
+
+// ⭐ 3. THÈME
+const isDarkTheme = ref(false);
+const currentThemeColor = ref(page.props.auth.user?.theme_color || "emerald");
+
+const changeThemeColor = async (color) => {
+    currentThemeColor.value = color;
+    document.documentElement.setAttribute("data-theme-color", color);
+    try {
+        await axios.post(route("theme.color"), { color });
+    } catch (error) {
+        console.error("Erreur sauvegarde couleur:", error);
+    }
+};
+
+const toggleDarkMode = async () => {
+    isDarkTheme.value = !isDarkTheme.value;
+    if (isDarkTheme.value) {
+        document.documentElement.classList.add("dark");
+    } else {
+        document.documentElement.classList.remove("dark");
+    }
+    try {
+        await axios.post(route("theme.toggle"));
+    } catch (error) {
+        console.error("Erreur sauvegarde thème:", error);
+    }
+};
+
+// ⭐ Vérifier si l'utilisateur est un candidat (operator)
+const isOperator = computed(() => {
+    const user = page.props.auth?.user;
+    if (!user) return false;
+
+    // Avec Spatie, les rôles sont des objets avec une propriété 'name'
+    if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+        return user.roles.some((role) => {
+            // Les rôles peuvent être des objets {id, name, guard_name} ou des strings
+            if (typeof role === "object" && role !== null) {
+                return role.name === "operator";
+            }
+            if (typeof role === "string") {
+                return role === "operator";
+            }
+            return false;
+        });
+    }
+
+    return false;
+});
+// ⭐ 4. ÉTAT LOCAL
 const isScrolled = ref(false);
-
-// ⭐ NOUVEAU : Stockage des notifications temps réel
 const realtimeNotifications = ref([]);
+const deleteDialog = ref(false);
 
-// Computed pour l'état du menu mobile
+// ⭐ 5. COMPUTED
+const userService = computed(() => {
+    const user = page.props.auth.user;
+    if (!user) return null;
+    if (user.roles?.includes("gerant") || user.roles?.includes("admin")) {
+        return user.service || null;
+    }
+    return null;
+});
+
+const appLogo = computed(() => {
+    const user = page.props.auth.user;
+    if (!user) return "/Images/DTTIA.jpeg";
+    if (
+        user.roles?.includes("superadmin") ||
+        user.roles?.includes("operator")
+    ) {
+        return "/Images/Fama.png";
+    }
+    if (userService.value?.logo_url) {
+        return userService.value.logo_url;
+    }
+    return "/Images/DTTIA.jpeg";
+});
+
+const appPrimaryName = computed(() => {
+    const user = page.props.auth.user;
+    if (!user) return "Recrutement";
+    if (
+        user.roles?.includes("superadmin") ||
+        user.roles?.includes("operator")
+    ) {
+        return "FAMa";
+    }
+    if (userService.value?.nom) {
+        return userService.value.nom;
+    }
+    return "Recrutement";
+});
+
+const appSecondaryName = computed(() => "Recrutement");
+
 const isMobileMenuOpen = computed(() => layoutState.staticMenuMobileActive);
 
-// --- DONNÉES COMPUTED ---
-// ⭐ MODIFIÉ : Fusionner les notifications existantes avec celles temps réel
 const notifications = computed(() => {
     const backendNotifs = page.props.auth.user?.notifications || [];
     const allNotifs = [...realtimeNotifications.value, ...backendNotifs];
-    // Supprimer les doublons par id
     return allNotifs.filter(
         (v, i, a) => a.findIndex((t) => t.id === v.id) === i,
     );
@@ -35,121 +133,39 @@ const notifications = computed(() => {
 const unreadNotifCount = computed(
     () => notifications.value.filter((n) => !n.read_at).length,
 );
-const unreadMsgCount = computed(
-    () => page.props.auth.user?.unread_messages_count || 0,
-);
 
-// Couleurs dynamiques
-const topbarClasses = computed(() => {
-    return {
-        "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50":
-            !isScrolled.value,
-        "bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-800":
-            isScrolled.value,
-    };
-});
+const topbarClasses = computed(() => ({
+    "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50":
+        !isScrolled.value,
+    "bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-800":
+        isScrolled.value,
+}));
 
-const logoTextClasses = computed(() => {
-    return {
-        "text-emerald-600 dark:text-emerald-400": !isDarkTheme.value,
-        "text-emerald-400": isDarkTheme.value,
-    };
-});
+const logoTextClasses = computed(() => ({
+    "text-emerald-600 dark:text-emerald-400": !isDarkTheme.value,
+    "text-emerald-400": isDarkTheme.value,
+}));
 
-// Scroll automatique après navigation
-const scrollToTop = () => {
-    setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 100);
+// ⭐ 6. FONCTIONS
+const scrollToTop = () =>
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
+const handleScroll = () => {
+    isScrolled.value = window.scrollY > 10;
+};
+const toggleMobileMenu = (event) => {
+    event.stopPropagation();
+    onMenuToggle();
+};
+const closeMobileMenu = () => {
+    if (layoutState.staticMenuMobileActive) resetMenu();
 };
 
-// Fermer le menu après navigation
-let removeNavigationListener = null;
-let echoChannel = null; // ⭐ Pour stocker le channel Echo
-
-onMounted(() => {
-    window.addEventListener("scroll", handleScroll);
-
-    // Écouter la fin de navigation Inertia
-    removeNavigationListener = inertiaRouter.on("success", () => {
-        if (layoutState.staticMenuMobileActive) {
-            resetMenu();
-        }
-        scrollToTop();
-    });
-
-    // ⭐ NOUVEAU : Initialiser l'écoute des notifications temps réel
-    initRealtimeNotifications();
-});
-
-onUnmounted(() => {
-    window.removeEventListener("scroll", handleScroll);
-    if (removeNavigationListener) {
-        removeNavigationListener();
-    }
-    // ⭐ Nettoyer le channel Echo
-    if (echoChannel) {
-        echoChannel.stopListening();
-    }
-});
-
-// ⭐ NOUVELLE FONCTION : Initialiser les notifications temps réel
-const initRealtimeNotifications = () => {
-    const userId = page.props.auth.user?.id;
-
-    if (!userId || !window.Echo) {
-        console.log("Echo non disponible ou utilisateur non connecté");
-        return;
-    }
-
-    // Attendre que Echo soit prêt
-    const waitForEcho = setInterval(() => {
-        if (
-            window.Echo &&
-            window.Echo.connector &&
-            window.Echo.connector.socket
-        ) {
-            clearInterval(waitForEcho);
-            console.log("✅ Écoute des notifications temps réel activée");
-
-            echoChannel = window.Echo.private(
-                `App.Models.User.${userId}`,
-            ).notification((notification) => {
-                console.log("📨 Notification temps réel reçue:", notification);
-
-                // Ajouter la notification à la liste temps réel
-                const newNotif = {
-                    id: Date.now(),
-                    data: notification.data || notification,
-                    created_at: new Date().toISOString(),
-                    read_at: null,
-                };
-                realtimeNotifications.value.unshift(newNotif);
-
-                // Optionnel : jouer un son
-                // const audio = new Audio('/sounds/notification.mp3');
-                // audio.play().catch(() => {});
-            });
-        }
-    }, 500);
-};
-
-// --- FONCTIONS EXISTANTES (inchangées) ---
 const markAllAsRead = () => {
     if (unreadNotifCount.value > 0) {
-        axios
-            .post(route("notifications.markAsRead"))
-            .then(() => {
-                page.props.auth.user.notifications = [];
-                // ⭐ Vider aussi les notifications temps réel
-                realtimeNotifications.value = [];
-            })
-            .catch((error) => {
-                console.error(
-                    "Erreur lors du marquage des notifications :",
-                    error,
-                );
-            });
+        axios.post(route("notifications.markAsRead")).then(() => {
+            page.props.auth.user.notifications = [];
+            realtimeNotifications.value = [];
+        });
     }
 };
 
@@ -162,34 +178,64 @@ const formatDate = (dateString) => {
     });
 };
 
-const handleScroll = () => {
-    isScrolled.value = window.scrollY > 10;
+let removeNavigationListener = null;
+let echoChannel = null;
+
+const initRealtimeNotifications = () => {
+    const userId = page.props.auth.user?.id;
+    if (!userId || !window.Echo) return;
+    const waitForEcho = setInterval(() => {
+        if (
+            window.Echo &&
+            window.Echo.connector &&
+            window.Echo.connector.socket
+        ) {
+            clearInterval(waitForEcho);
+            echoChannel = window.Echo.private(
+                `App.Models.User.${userId}`,
+            ).notification((notification) => {
+                realtimeNotifications.value.unshift({
+                    id: Date.now(),
+                    data: notification.data || notification,
+                    created_at: new Date().toISOString(),
+                    read_at: null,
+                });
+            });
+        }
+    }, 500);
 };
 
-// Synchronisation du thème
-watch(isDarkTheme, (newVal) => {
-    if (newVal) {
+// ⭐ 7. LIFECYCLE
+onMounted(() => {
+    document.documentElement.setAttribute(
+        "data-theme-color",
+        currentThemeColor.value,
+    );
+    const userTheme = page.props.auth.user?.theme;
+    if (userTheme === "dark") {
+        isDarkTheme.value = true;
         document.documentElement.classList.add("dark");
-    } else {
-        document.documentElement.classList.remove("dark");
     }
+    window.addEventListener("scroll", handleScroll);
+    removeNavigationListener = inertiaRouter.on("success", () => {
+        if (layoutState.staticMenuMobileActive) resetMenu();
+        scrollToTop();
+    });
+    initRealtimeNotifications();
 });
 
-// Gestion du menu mobile
-const toggleMobileMenu = (event) => {
-    event.stopPropagation();
-    onMenuToggle();
-};
+onUnmounted(() => {
+    window.removeEventListener("scroll", handleScroll);
+    if (removeNavigationListener) removeNavigationListener();
+    if (echoChannel) echoChannel.stopListening();
+});
 
-const closeMobileMenu = () => {
-    if (layoutState.staticMenuMobileActive) {
-        resetMenu();
-    }
-};
+watch(isDarkTheme, (newVal) => {
+    if (newVal) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+});
 </script>
-
 <template>
-    <!-- LE TEMPLATE RESTE EXACTEMENT IDENTIQUE -->
     <div
         class="layout-topbar fixed top-0 left-0 right-0 z-50 transition-all duration-300"
         :class="topbarClasses"
@@ -227,26 +273,23 @@ const closeMobileMenu = () => {
                     >
                         <div class="relative flex-shrink-0">
                             <div
-                                class="absolute inset-0 rounded-full blur-xl transition-all duration-300"
-                                :class="
-                                    isDarkTheme
-                                        ? 'bg-emerald-500/30'
-                                        : 'bg-emerald-500/20'
-                                "
+                                class="absolute inset-0 rounded-full blur-xl transition-all duration-300 theme-bg-primary opacity-20 dark:opacity-30"
                             ></div>
                             <img
-                                src="/Images/DTTIA.jpeg"
-                                alt="DTTIA"
-                                class="h-8 sm:h-10 md:h-12 w-auto relative rounded-lg shadow-lg group-hover:shadow-emerald-500/20 group-hover:scale-105 transition-all duration-300"
+                                :src="appLogo"
+                                :alt="appPrimaryName"
+                                class="h-8 sm:h-10 md:h-12 w-auto relative rounded-lg shadow-lg group-hover:scale-105 transition-all duration-300"
                                 :class="{ 'brightness-90': isDarkTheme }"
+                                @error="
+                                    (e) => (e.target.src = '/Images/Fama.png')
+                                "
                             />
                         </div>
                         <div class="flex flex-col">
                             <span
-                                class="font-black text-sm sm:text-base md:text-xl tracking-tight leading-none transition-colors"
-                                :class="logoTextClasses"
+                                class="font-black text-sm sm:text-base md:text-xl tracking-tight leading-none transition-colors theme-text-primary"
                             >
-                                Recrutement
+                                {{ appPrimaryName }}
                             </span>
                             <span
                                 class="font-medium text-xs sm:text-sm md:text-base tracking-wide transition-colors"
@@ -256,7 +299,7 @@ const closeMobileMenu = () => {
                                         : 'text-gray-700'
                                 "
                             >
-                                DTTIA
+                                {{ appSecondaryName }}
                             </span>
                         </div>
                     </NavLink>
@@ -267,27 +310,29 @@ const closeMobileMenu = () => {
                     <div
                         class="flex items-center gap-1 p-0.5 sm:p-1 bg-gray-100 dark:bg-gray-800 rounded-xl"
                     >
+                        <!-- LUNE : activer le mode nuit -->
                         <button
                             @click="!isDarkTheme && toggleDarkMode()"
                             class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all duration-200 flex items-center justify-center"
                             :class="
                                 !isDarkTheme
-                                    ? 'bg-white dark:bg-gray-900 shadow-sm text-emerald-600'
+                                    ? 'bg-white dark:bg-gray-900 shadow-sm theme-text-primary'
                                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                             "
                         >
-                            <i class="pi pi-sun text-xs sm:text-sm"></i>
+                            <i class="pi pi-moon text-xs sm:text-sm"></i>
                         </button>
+                        <!-- SOLEIL : activer le mode jour -->
                         <button
                             @click="isDarkTheme && toggleDarkMode()"
                             class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all duration-200 flex items-center justify-center"
                             :class="
                                 isDarkTheme
-                                    ? 'bg-white dark:bg-gray-900 shadow-sm text-emerald-400'
+                                    ? 'bg-white dark:bg-gray-900 shadow-sm theme-text-primary'
                                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                             "
                         >
-                            <i class="pi pi-moon text-xs sm:text-sm"></i>
+                            <i class="pi pi-sun text-xs sm:text-sm"></i>
                         </button>
                     </div>
 
@@ -317,7 +362,6 @@ const closeMobileMenu = () => {
                                 }}
                             </span>
                         </button>
-
                         <div
                             class="hidden bg-white dark:bg-gray-800 shadow-xl absolute right-0 mt-2 w-72 sm:w-80 py-2 rounded-xl border dark:border-gray-700 z-50"
                         >
@@ -328,7 +372,7 @@ const closeMobileMenu = () => {
                                 <button
                                     v-if="unreadNotifCount > 0"
                                     @click="markAllAsRead"
-                                    class="text-xs text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 bg-transparent cursor-pointer font-medium"
+                                    class="text-xs theme-text-primary hover:underline bg-transparent cursor-pointer font-medium"
                                 >
                                     Tout marquer
                                 </button>
@@ -351,10 +395,10 @@ const closeMobileMenu = () => {
                                     <div class="flex gap-2 sm:gap-3">
                                         <div class="flex-shrink-0">
                                             <div
-                                                class="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center"
+                                                class="w-6 h-6 sm:w-8 sm:h-8 theme-bg-light rounded-full flex items-center justify-center"
                                             >
                                                 <i
-                                                    class="pi pi-info-circle text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs"
+                                                    class="pi pi-info-circle theme-text-primary text-[10px] sm:text-xs"
                                                 ></i>
                                             </div>
                                         </div>
@@ -366,11 +410,10 @@ const closeMobileMenu = () => {
                                             </p>
                                             <span
                                                 class="text-[8px] sm:text-[10px] text-gray-400 mt-0.5 block"
-                                            >
-                                                {{
+                                                >{{
                                                     formatDate(notif.created_at)
-                                                }}
-                                            </span>
+                                                }}</span
+                                            >
                                         </div>
                                     </div>
                                 </div>
@@ -393,7 +436,7 @@ const closeMobileMenu = () => {
                             }"
                         >
                             <div
-                                class="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0"
+                                class="w-7 h-7 sm:w-8 sm:h-8 theme-bg-primary rounded-lg flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0"
                             >
                                 {{
                                     page.props.auth.user?.name?.charAt(0) || "U"
@@ -429,6 +472,43 @@ const closeMobileMenu = () => {
                                     {{ page.props.auth.user?.email }}
                                 </p>
                             </div>
+                            <!-- ⭐ Palette de couleurs - Visible uniquement pour les non-operators -->
+                            <div
+                                v-if="!isOperator"
+                                class="px-3 sm:px-4 py-2 border-b dark:border-gray-700"
+                            >
+                                <p
+                                    class="text-[10px] sm:text-xs text-gray-500 mb-2"
+                                >
+                                    Couleur du thème
+                                </p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <button
+                                        v-for="color in colorPalette"
+                                        :key="color.value"
+                                        @click="changeThemeColor(color.value)"
+                                        :class="[
+                                            'w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-all duration-200',
+                                            color.bg,
+                                            currentThemeColor === color.value
+                                                ? 'ring-2 ring-offset-2 ring-gray-400 scale-110'
+                                                : 'hover:scale-110',
+                                        ]"
+                                        :title="color.name"
+                                    ></button>
+                                </div>
+                            </div>
+                            <DropdownLink
+                                :href="route('profile.edit')"
+                                as="a"
+                                class="w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                            >
+                                <i class="pi pi-cog text-[10px] sm:text-xs"></i>
+                                Paramètres
+                            </DropdownLink>
+                            <div
+                                class="border-t dark:border-gray-700 my-1"
+                            ></div>
                             <DropdownLink
                                 :href="route('logout')"
                                 method="post"
@@ -447,7 +527,7 @@ const closeMobileMenu = () => {
         </div>
     </div>
 
-    <!-- Menu mobile avec AppMenu -->
+    <!-- Menu mobile -->
     <transition
         enter-active-class="transition-transform duration-300 ease-out"
         enter-from-class="-translate-x-full"
@@ -464,8 +544,6 @@ const closeMobileMenu = () => {
             <AppMenu />
         </div>
     </transition>
-
-    <!-- Overlay pour mobile -->
     <div
         v-if="isMobileMenuOpen"
         class="fixed inset-0 bg-black/50 z-[55] lg:hidden"

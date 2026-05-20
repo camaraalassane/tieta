@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from "vue";
-import { router, Head, Link } from "@inertiajs/vue3";
+import { ref, nextTick } from "vue";
+import { router, Head } from "@inertiajs/vue3";
 import AppLayout from "@/sakai/layout/AppLayout.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
@@ -26,66 +26,96 @@ const props = defineProps({
 const toast = useToast();
 const confirm = useConfirm();
 
-// État du formulaire
 const dialogVisible = ref(false);
 const isEditing = ref(false);
+const fileInput = ref(null);
+const selectedFileName = ref("");
+
 const form = ref({
     id: null,
     concour_id: null,
     titre: "",
     contenu: "",
+    fichier: null,
     is_active: false,
-    publish: false,
     date_limite: null,
 });
 
-// Réinitialiser le formulaire
 const resetForm = () => {
     form.value = {
         id: null,
         concour_id: null,
         titre: "",
         contenu: "",
+        fichier: null,
         is_active: false,
-        publish: false,
         date_limite: null,
     };
+    selectedFileName.value = "";
     isEditing.value = false;
+    if (fileInput.value) fileInput.value.value = "";
 };
 
-// Ouvrir le dialogue pour créer
+const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+            toast.add({
+                severity: "error",
+                summary: "Fichier trop volumineux",
+                detail: "Le fichier ne doit pas dépasser 5 Mo",
+                life: 3000,
+            });
+            return;
+        }
+        form.value.fichier = file;
+        selectedFileName.value = file.name;
+    }
+};
+
+const removeFile = () => {
+    form.value.fichier = null;
+    selectedFileName.value = "";
+    if (fileInput.value) fileInput.value.value = "";
+};
+
+const downloadFile = (url, nom) => {
+    if (url) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = nom || "fichier";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+};
+
 const openCreateDialog = () => {
     resetForm();
     dialogVisible.value = true;
 };
 
-// Ouvrir le dialogue pour éditer
 const openEditDialog = (communique) => {
+    let dateLimite = null;
+    if (communique.date_limite) {
+        const parts = communique.date_limite.split("/");
+        if (parts.length === 3)
+            dateLimite = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    }
     form.value = {
         id: communique.id,
         concour_id: communique.concour_id,
         titre: communique.titre,
         contenu: communique.contenu,
-        is_active: communique.is_active,
-        publish: false,
-        date_limite: communique.date_limite || null,
+        fichier: null,
+        is_active: communique.is_active === true || communique.is_active === 1,
+        date_limite: dateLimite,
     };
+    selectedFileName.value = "";
     isEditing.value = true;
     dialogVisible.value = true;
 };
 
-// Récupérer l'intitulé du concours par son ID
-const getConcourIntitule = (id) => {
-    const concour = props.concours.find((c) => c.id === id);
-    return concour ? concour.intitule : "";
-};
-
-// Récupérer le statut du concours par son ID
-const getConcourStatut = (id) => {
-    const concour = props.concours.find((c) => c.id === id);
-    return concour ? concour.statut : "";
-};
-// Sauvegarder le communiqué
 const saveCommunique = () => {
     if (!form.value.concour_id) {
         toast.add({
@@ -109,129 +139,157 @@ const saveCommunique = () => {
         toast.add({
             severity: "error",
             summary: "Erreur",
-            detail: "Veuillez saisir le contenu du communiqué",
+            detail: "Veuillez saisir le contenu",
             life: 3000,
         });
         return;
     }
 
-    router.post(route("communiques.store"), form.value, {
-        preserveScroll: true,
-        onSuccess: () => {
-            dialogVisible.value = false;
-            resetForm();
-            toast.add({
-                severity: "success",
-                summary: "Succès",
-                detail: "Communiqué enregistré",
-                life: 3000,
-            });
-        },
-        onError: (errors) => {
-            toast.add({
-                severity: "error",
-                summary: "Erreur",
-                detail: Object.values(errors).join(", "),
-                life: 3000,
-            });
-        },
-    });
+    const data = new FormData();
+    data.append("concour_id", form.value.concour_id);
+    data.append("titre", form.value.titre);
+    data.append("contenu", form.value.contenu);
+    data.append("is_active", form.value.is_active ? "1" : "0");
+    data.append(
+        "date_limite",
+        form.value.date_limite
+            ? new Date(form.value.date_limite).toISOString().split("T")[0]
+            : "",
+    );
+    if (form.value.fichier) data.append("fichier", form.value.fichier);
+
+    if (form.value.id) {
+        // ⭐ Mise à jour
+        router.put(route("communiques.update", form.value.id), data, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                dialogVisible.value = false;
+                resetForm();
+                toast.add({
+                    severity: "success",
+                    summary: "Succès",
+                    detail: "Communiqué mis à jour",
+                    life: 3000,
+                });
+            },
+            onError: (errors) => {
+                toast.add({
+                    severity: "error",
+                    summary: "Erreur",
+                    detail: Object.values(errors).join(", "),
+                    life: 3000,
+                });
+            },
+        });
+    } else {
+        // ⭐ Création
+        router.post(route("communiques.store"), data, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                dialogVisible.value = false;
+                resetForm();
+                toast.add({
+                    severity: "success",
+                    summary: "Succès",
+                    detail: "Communiqué créé",
+                    life: 3000,
+                });
+            },
+            onError: (errors) => {
+                toast.add({
+                    severity: "error",
+                    summary: "Erreur",
+                    detail: Object.values(errors).join(", "),
+                    life: 3000,
+                });
+            },
+        });
+    }
 };
 
-// Publier un communiqué
 const publishCommunique = (communique) => {
     confirm.require({
-        message: `Voulez-vous publier ce communiqué ? Il sera visible sur la page d'accueil.`,
+        message: "Voulez-vous publier ce communiqué ?",
         header: "Confirmation",
         icon: "pi pi-exclamation-triangle",
         acceptLabel: "Publier",
         rejectLabel: "Annuler",
         acceptClass: "p-button-success",
-        accept: () => {
+        accept: () =>
             router.patch(
                 route("communiques.publish", communique.id),
                 {},
                 {
                     preserveScroll: true,
-                    onSuccess: () => {
+                    onSuccess: () =>
                         toast.add({
                             severity: "success",
                             summary: "Publié",
-                            detail: "Communiqué publié avec succès",
                             life: 3000,
-                        });
-                    },
+                        }),
                 },
-            );
-        },
+            ),
     });
 };
 
-// Dépublier un communiqué
 const unpublishCommunique = (communique) => {
     confirm.require({
-        message: `Voulez-vous dépublier ce communiqué ? Il ne sera plus visible sur la page d'accueil.`,
+        message: "Voulez-vous dépublier ce communiqué ?",
         header: "Confirmation",
         icon: "pi pi-exclamation-triangle",
         acceptLabel: "Dépublier",
         rejectLabel: "Annuler",
         acceptClass: "p-button-warning",
-        accept: () => {
+        accept: () =>
             router.patch(
                 route("communiques.unpublish", communique.id),
                 {},
                 {
                     preserveScroll: true,
-                    onSuccess: () => {
+                    onSuccess: () =>
                         toast.add({
                             severity: "info",
                             summary: "Dépublié",
-                            detail: "Communiqué dépublié avec succès",
                             life: 3000,
-                        });
-                    },
+                        }),
                 },
-            );
-        },
+            ),
     });
 };
 
-// Supprimer un communiqué
 const deleteCommunique = (communique) => {
     confirm.require({
-        message: `Voulez-vous supprimer définitivement ce communiqué ?`,
+        message: "Voulez-vous supprimer définitivement ce communiqué ?",
         header: "Confirmation",
         icon: "pi pi-exclamation-triangle",
         acceptLabel: "Supprimer",
         rejectLabel: "Annuler",
         acceptClass: "p-button-danger",
-        accept: () => {
+        accept: () =>
             router.delete(route("communiques.destroy", communique.id), {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: () =>
                     toast.add({
                         severity: "success",
                         summary: "Supprimé",
-                        detail: "Communiqué supprimé avec succès",
                         life: 3000,
-                    });
-                },
-            });
-        },
+                    }),
+            }),
     });
 };
 
-// Statut badge
-const getStatusBadge = (isActive) => {
-    return isActive
+const getStatusBadge = (isActive) =>
+    isActive
         ? { severity: "success", value: "Publié" }
         : { severity: "secondary", value: "Brouillon" };
-};
 
-// Vérifier si la date limite est expirée
 const isDateExpired = (dateLimite) => {
     if (!dateLimite) return false;
-    return new Date(dateLimite) < new Date();
+    const parts = dateLimite.split("/");
+    if (parts.length !== 3) return false;
+    return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) < new Date();
 };
 </script>
 
@@ -241,454 +299,403 @@ const isDateExpired = (dateLimite) => {
         <ConfirmDialog />
         <Toast />
 
-        <div class="p-fluid px-4 md:px-6 lg:px-8">
-            <!-- En-tête -->
-            <div class="grid mb-6">
-                <div class="col-12">
-                    <Card
-                        class="shadow-lg border-none overflow-hidden bg-gradient-to-r from-emerald-50 to-white dark:from-emerald-900/20 dark:to-gray-900"
-                    >
-                        <template #content>
-                            <div
-                                class="flex flex-column lg:flex-row align-items-center justify-content-between gap-4"
-                            >
-                                <div class="flex align-items-center gap-4">
-                                    <div
-                                        class="w-16 h-16 bg-emerald-500 border-round-xl flex align-items-center justify-content-center"
-                                    >
-                                        <i
-                                            class="pi pi-megaphone text-white text-3xl"
-                                        ></i>
-                                    </div>
-                                    <div>
-                                        <h1
-                                            class="text-3xl font-bold text-900 m-0 mb-2"
-                                        >
-                                            Gestion des communiqués
-                                        </h1>
-                                        <p
-                                            class="text-600 m-0 flex align-items-center gap-2"
-                                        >
-                                            <i
-                                                class="pi pi-info-circle text-emerald-500"
-                                            ></i>
-                                            Créez et gérez les communiqués pour
-                                            informer les candidats
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    label="Nouveau communiqué"
-                                    icon="pi pi-plus"
-                                    severity="success"
-                                    @click="openCreateDialog"
-                                    class="shadow-sm"
-                                />
+        <div class="page-container">
+            <div class="header-section">
+                <Card class="header-card">
+                    <template #content>
+                        <div class="header-content">
+                            <div class="header-icon">
+                                <i class="pi pi-megaphone"></i>
                             </div>
-                        </template>
-                    </Card>
-                </div>
+                            <div class="header-text">
+                                <h1>Gestion des communiqués</h1>
+                                <p>
+                                    <i class="pi pi-info-circle"></i> Créez et
+                                    gérez les communiqués pour informer les
+                                    candidats
+                                </p>
+                            </div>
+                            <Button
+                                label="Nouveau communiqué"
+                                icon="pi pi-plus"
+                                @click="openCreateDialog"
+                                class="new-btn"
+                            />
+                        </div>
+                    </template>
+                </Card>
             </div>
 
-            <!-- Tableau des communiqués -->
-            <div class="grid">
-                <div class="col-12">
-                    <Card class="shadow-md">
-                        <template #title>
-                            <div class="flex align-items-center gap-2">
-                                <i class="pi pi-list text-emerald-500"></i>
-                                <span class="text-lg font-semibold"
-                                    >Liste des communiqués</span
-                                >
-                                <span class="text-sm text-600 ml-auto"
-                                    >{{
-                                        communiques.length
-                                    }}
-                                    communiqué(s)</span
-                                >
-                            </div>
-                        </template>
-                        <template #content>
-                            <DataTable
-                                :value="communiques"
-                                stripedRows
-                                showGridlines
-                                responsiveLayout="stack"
-                                class="p-datatable-sm"
+            <div class="desktop-view">
+                <Card class="table-card">
+                    <template #title>
+                        <div class="table-title">
+                            <i class="pi pi-list"></i
+                            ><span>Liste des communiqués</span
+                            ><span class="total-badge"
+                                >{{ communiques.length }} communiqué(s)</span
                             >
-                                <Column
-                                    field="concour_intitule"
-                                    header="Concours"
-                                    sortable
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="flex align-items-center gap-2"
-                                        >
-                                            <i
-                                                class="pi pi-calendar text-emerald-500"
-                                            ></i>
-                                            <span>{{
-                                                slotProps.data.concour_intitule
-                                            }}</span>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column field="titre" header="Titre" sortable>
-                                    <template #body="slotProps">
-                                        <span class="font-medium">{{
-                                            slotProps.data.titre
+                        </div>
+                    </template>
+                    <template #content>
+                        <DataTable
+                            :value="communiques"
+                            stripedRows
+                            showGridlines
+                            class="p-datatable-sm"
+                        >
+                            <Column
+                                field="concour_intitule"
+                                header="Concours"
+                                sortable
+                                ><template #body="sp"
+                                    ><div class="concour-cell">
+                                        <i class="pi pi-calendar"></i
+                                        ><span>{{
+                                            sp.data.concour_intitule
                                         }}</span>
-                                    </template>
-                                </Column>
-
-                                <Column
-                                    field="contenu"
-                                    header="Contenu"
-                                    style="min-width: 200px"
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="text-sm text-600 line-clamp-2"
+                                    </div></template
+                                ></Column
+                            >
+                            <Column field="titre" header="Titre" sortable
+                                ><template #body="sp"
+                                    ><span class="titre-cell">{{
+                                        sp.data.titre
+                                    }}</span></template
+                                ></Column
+                            >
+                            <Column field="contenu" header="Contenu"
+                                ><template #body="sp"
+                                    ><div class="contenu-cell">
+                                        {{ sp.data.contenu }}
+                                    </div></template
+                                ></Column
+                            >
+                            <Column
+                                field="date_limite"
+                                header="Date limite"
+                                sortable
+                                ><template #body="sp"
+                                    ><div class="date-cell">
+                                        <i class="pi pi-calendar"></i
+                                        ><span
+                                            :class="{
+                                                expired: isDateExpired(
+                                                    sp.data.date_limite,
+                                                ),
+                                            }"
+                                            >{{
+                                                sp.data.date_limite ||
+                                                "Illimitée"
+                                            }}</span
                                         >
-                                            {{ slotProps.data.contenu }}
-                                        </div>
-                                    </template>
-                                </Column>
+                                    </div></template
+                                ></Column
+                            >
+                            <Column
+                                field="published_at"
+                                header="Publication"
+                                sortable
+                                ><template #body="sp"
+                                    ><div class="date-cell">
+                                        <i class="pi pi-clock"></i
+                                        ><span>{{
+                                            sp.data.published_at || "-"
+                                        }}</span>
+                                    </div></template
+                                ></Column
+                            >
+                            <Column header="Statut"
+                                ><template #body="sp"
+                                    ><Tag
+                                        :severity="
+                                            getStatusBadge(sp.data.is_active)
+                                                .severity
+                                        "
+                                        :value="
+                                            getStatusBadge(sp.data.is_active)
+                                                .value
+                                        "
+                                        rounded /></template
+                            ></Column>
+                            <Column header="Fichier" style="width: 6rem"
+                                ><template #body="sp"
+                                    ><Button
+                                        v-if="sp.data.fichier_url"
+                                        icon="pi pi-download"
+                                        rounded
+                                        text
+                                        size="small"
+                                        class="download-btn"
+                                        v-tooltip.top="'Télécharger'"
+                                        @click="
+                                            downloadFile(
+                                                sp.data.fichier_url,
+                                                sp.data.fichier_nom,
+                                            )
+                                        "
+                                    /><span v-else class="no-file"
+                                        >-</span
+                                    ></template
+                                ></Column
+                            >
+                            <Column header="Actions" style="width: 10rem">
+                                <template #body="sp">
+                                    <div class="actions-cell">
+                                        <Button
+                                            icon="pi pi-pencil"
+                                            rounded
+                                            text
+                                            size="small"
+                                            class="edit-btn"
+                                            v-tooltip.top="'Modifier'"
+                                            @click="openEditDialog(sp.data)"
+                                        />
+                                        <Button
+                                            v-if="!sp.data.is_active"
+                                            icon="pi pi-check-circle"
+                                            rounded
+                                            text
+                                            size="small"
+                                            class="publish-btn"
+                                            v-tooltip.top="'Publier'"
+                                            @click="publishCommunique(sp.data)"
+                                        />
+                                        <Button
+                                            v-else
+                                            icon="pi pi-eye-slash"
+                                            rounded
+                                            text
+                                            size="small"
+                                            class="unpublish-btn"
+                                            v-tooltip.top="'Dépublier'"
+                                            @click="
+                                                unpublishCommunique(sp.data)
+                                            "
+                                        />
+                                        <Button
+                                            icon="pi pi-trash"
+                                            rounded
+                                            text
+                                            size="small"
+                                            class="delete-btn"
+                                            v-tooltip.top="'Supprimer'"
+                                            @click="deleteCommunique(sp.data)"
+                                        />
+                                    </div>
+                                </template>
+                            </Column>
+                        </DataTable>
+                    </template>
+                </Card>
+            </div>
 
-                                <Column
-                                    field="date_limite"
-                                    header="Date limite"
-                                    sortable
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="flex align-items-center gap-2"
-                                        >
-                                            <i
-                                                class="pi pi-calendar text-400"
-                                            ></i>
-                                            <span
-                                                :class="{
-                                                    'text-red-500 font-semibold':
-                                                        isDateExpired(
-                                                            slotProps.data
-                                                                .date_limite,
-                                                        ),
-                                                    'text-green-600':
-                                                        slotProps.data
-                                                            .date_limite &&
-                                                        !isDateExpired(
-                                                            slotProps.data
-                                                                .date_limite,
-                                                        ),
-                                                }"
-                                            >
-                                                {{
-                                                    slotProps.data
-                                                        .date_limite ||
-                                                    "Illimitée"
-                                                }}
-                                            </span>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column
-                                    field="published_at"
-                                    header="Date publication"
-                                    sortable
-                                >
-                                    <template #body="slotProps">
-                                        <div
-                                            class="flex align-items-center gap-2"
-                                        >
-                                            <i class="pi pi-clock text-400"></i>
-                                            <span>{{
-                                                slotProps.data.published_at ||
-                                                "-"
-                                            }}</span>
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column header="Statut">
-                                    <template #body="slotProps">
-                                        <div class="flex flex-column gap-1">
-                                            <Tag
-                                                :severity="
-                                                    getStatusBadge(
-                                                        slotProps.data
-                                                            .is_active,
-                                                    ).severity
-                                                "
-                                                :value="
-                                                    getStatusBadge(
-                                                        slotProps.data
-                                                            .is_active,
-                                                    ).value
-                                                "
-                                                rounded
-                                            />
-                                            <Tag
-                                                v-if="
-                                                    isDateExpired(
-                                                        slotProps.data
-                                                            .date_limite,
-                                                    )
-                                                "
-                                                severity="danger"
-                                                value="Expiré"
-                                                size="small"
-                                                class="mt-1"
-                                            />
-                                        </div>
-                                    </template>
-                                </Column>
-
-                                <Column header="Actions" style="width: 10rem">
-                                    <template #body="slotProps">
-                                        <div class="flex gap-1">
-                                            <Button
-                                                icon="pi pi-pencil"
-                                                rounded
-                                                text
-                                                size="small"
-                                                class="text-emerald-600"
-                                                v-tooltip.top="'Modifier'"
-                                                @click="
-                                                    openEditDialog(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
-                                            <Button
-                                                v-if="!slotProps.data.is_active"
-                                                icon="pi pi-check-circle"
-                                                rounded
-                                                text
-                                                size="small"
-                                                class="text-green-600"
-                                                v-tooltip.top="'Publier'"
-                                                @click="
-                                                    publishCommunique(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
-                                            <Button
-                                                v-else
-                                                icon="pi pi-eye-slash"
-                                                rounded
-                                                text
-                                                size="small"
-                                                class="text-orange-600"
-                                                v-tooltip.top="'Dépublier'"
-                                                @click="
-                                                    unpublishCommunique(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
-                                            <Button
-                                                icon="pi pi-trash"
-                                                rounded
-                                                text
-                                                size="small"
-                                                class="text-red-600"
-                                                v-tooltip.top="'Supprimer'"
-                                                @click="
-                                                    deleteCommunique(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
-                                        </div>
-                                    </template>
-                                </Column>
-                            </DataTable>
-                        </template>
-                    </Card>
+            <div class="mobile-view">
+                <div v-if="communiques.length === 0" class="empty-state">
+                    <i class="pi pi-inbox"></i>
+                    <p>Aucun communiqué</p>
+                </div>
+                <div
+                    v-for="item in communiques"
+                    :key="item.id"
+                    class="communique-card"
+                >
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="pi pi-megaphone"></i
+                            ><span>{{ item.titre }}</span>
+                        </div>
+                        <Tag
+                            :severity="getStatusBadge(item.is_active).severity"
+                            :value="getStatusBadge(item.is_active).value"
+                            size="small"
+                        />
+                    </div>
+                    <div class="card-body">
+                        <div class="card-row">
+                            <span class="card-label">Concours :</span
+                            ><span class="card-value">{{
+                                item.concour_intitule
+                            }}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">Contenu :</span
+                            ><span class="card-value card-content">{{
+                                item.contenu
+                            }}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">Date limite :</span
+                            ><span
+                                class="card-value"
+                                :class="{
+                                    expired: isDateExpired(item.date_limite),
+                                }"
+                                >{{ item.date_limite || "Illimitée" }}</span
+                            >
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">Publication :</span
+                            ><span class="card-value">{{
+                                item.published_at || "-"
+                            }}</span>
+                        </div>
+                        <div class="card-row" v-if="item.fichier_url">
+                            <span class="card-label">Fichier :</span
+                            ><Button
+                                icon="pi pi-download"
+                                label="Télécharger"
+                                size="small"
+                                text
+                                class="download-mobile-btn"
+                                @click="
+                                    downloadFile(
+                                        item.fichier_url,
+                                        item.fichier_nom,
+                                    )
+                                "
+                            />
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <Button
+                            icon="pi pi-pencil"
+                            rounded
+                            text
+                            size="small"
+                            @click="openEditDialog(item)"
+                        />
+                        <Button
+                            v-if="!item.is_active"
+                            icon="pi pi-check-circle"
+                            rounded
+                            text
+                            size="small"
+                            class="text-green-600"
+                            @click="publishCommunique(item)"
+                        />
+                        <Button
+                            v-else
+                            icon="pi pi-eye-slash"
+                            rounded
+                            text
+                            size="small"
+                            class="text-orange-600"
+                            @click="unpublishCommunique(item)"
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            rounded
+                            text
+                            size="small"
+                            class="text-red-600"
+                            @click="deleteCommunique(item)"
+                        />
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Dialogue de création/édition -->
+        <!-- ⭐ DIALOG AVEC SELECT CONTENU -->
         <Dialog
             v-model:visible="dialogVisible"
             :header="
                 isEditing ? 'Modifier le communiqué' : 'Nouveau communiqué'
             "
             :modal="true"
-            :style="{ width: '90vw', maxWidth: '1000px' }"
+            :style="{ width: '90vw', maxWidth: '600px' }"
             :closable="true"
-            :dismissableMask="true"
+            :dismissableMask="false"
             class="communique-dialog"
         >
             <div class="dialog-content">
-                <!-- Message d'aide -->
-                <div class="help-message">
-                    <i class="pi pi-info-circle"></i>
-                    <div>
-                        <strong>À quoi sert un communiqué ?</strong>
-                        <p>
-                            Un communiqué permet d'informer les candidats sur
-                            les étapes à suivre, les dates importantes, les
-                            documents requis ou toute information concernant un
-                            concours.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Champ Concours - Structure corrigée -->
                 <div class="form-field">
-                    <label class="field-label">
-                        <i class="pi pi-calendar"></i>
-                        Concours concerné
-                        <span class="required">*</span>
-                    </label>
-                    <div class="select-container">
-                        <Select
-                            v-model="form.concour_id"
-                            :options="concours"
-                            optionLabel="intitule"
-                            optionValue="id"
-                            placeholder="Choisissez un concours"
-                            class="w-full"
-                            :class="{
-                                'p-invalid': !form.concour_id && form.submitted,
-                            }"
-                            :showClear="true"
-                            :filter="true"
-                        >
-                            <template #value="slotProps">
-                                <div
-                                    v-if="slotProps.value"
-                                    class="selected-value"
-                                >
-                                    <i
-                                        class="pi pi-tag text-emerald-500 mr-2"
-                                    ></i>
-                                    <span class="selected-text">{{
-                                        getConcourIntitule(slotProps.value)
-                                    }}</span>
-                                    <Tag
-                                        v-if="getConcourStatut(slotProps.value)"
-                                        :value="
-                                            getConcourStatut(slotProps.value)
-                                        "
-                                        :severity="
-                                            getConcourStatut(
-                                                slotProps.value,
-                                            ) === 'Actif'
-                                                ? 'success'
-                                                : 'secondary'
-                                        "
-                                        size="small"
-                                        class="ml-2"
-                                    />
-                                </div>
-                                <span v-else class="text-400"
-                                    >Choisissez un concours</span
-                                >
-                            </template>
-                        </Select>
-                    </div>
-                    <small class="field-hint"
-                        >Sélectionnez le concours auquel ce communiqué est
-                        destiné</small
+                    <label class="field-label"
+                        >Concours concerné
+                        <span class="required">*</span></label
                     >
+                    <Select
+                        v-model="form.concour_id"
+                        :options="concours"
+                        optionLabel="intitule"
+                        optionValue="id"
+                        placeholder="Choisissez un concours"
+                        class="w-full select-in-dialog"
+                        :showClear="true"
+                        :filter="true"
+                    />
                 </div>
-
-                <!-- Champ Titre -->
                 <div class="form-field">
-                    <label class="field-label">
-                        <i class="pi pi-heading"></i>
-                        Titre du communiqué
-                        <span class="required">*</span>
-                    </label>
-                    <InputText
+                    <label class="field-label"
+                        >Titre <span class="required">*</span></label
+                    ><InputText
                         v-model="form.titre"
-                        placeholder="Ex: Procédure de candidature 2026"
-                        class="field-input"
+                        placeholder="Titre du communiqué"
+                        class="w-full"
                     />
+                </div>
+                <div class="form-field">
+                    <label class="field-label"
+                        >Contenu <span class="required">*</span></label
+                    ><Textarea
+                        v-model="form.contenu"
+                        rows="6"
+                        placeholder="Contenu..."
+                        class="w-full"
+                    />
+                </div>
+                <div class="form-field">
+                    <label class="field-label">Fichier joint (optionnel)</label>
+                    <input
+                        type="file"
+                        ref="fileInput"
+                        @change="handleFileUpload"
+                        accept=".pdf,.doc,.docx,.jpg,.png"
+                        class="hidden-file-input"
+                    />
+                    <Button
+                        type="button"
+                        icon="pi pi-upload"
+                        label="Choisir un fichier"
+                        class="p-button-outlined w-full"
+                        @click="$refs.fileInput.click()"
+                    />
+                    <div v-if="selectedFileName" class="file-info">
+                        <i class="pi pi-file-pdf"></i
+                        ><span>{{ selectedFileName }}</span
+                        ><Button
+                            icon="pi pi-times"
+                            class="p-button-rounded p-button-text p-button-sm"
+                            @click="removeFile"
+                        />
+                    </div>
                     <small class="field-hint"
-                        >Un titre clair et concis pour attirer
-                        l'attention</small
+                        >PDF, DOC, DOCX, JPG, PNG (max 5MB)</small
                     >
                 </div>
-
-                <!-- Champ Contenu -->
                 <div class="form-field">
-                    <label class="field-label">
-                        <i class="pi pi-file-edit"></i>
-                        Contenu du communiqué
-                        <span class="required">*</span>
-                    </label>
-                    <Textarea
-                        v-model="form.contenu"
-                        rows="12"
-                        placeholder="Décrivez les informations importantes pour les candidats :&#10;&#10;• Étape 1 : Inscription en ligne du [date] au [date]&#10;• Étape 2 : Dépôt des dossiers avant le [date]&#10;• Étape 3 : Entretien prévu le [date]&#10;• Documents à fournir : CV, lettre de motivation, diplômes...&#10;• Contact : email@example.com"
-                        class="field-textarea"
-                    />
-                    <div class="field-footer">
-                        <small class="field-hint"
-                            >Utilisez • pour créer des listes à puces</small
-                        >
-                        <small class="char-count"
-                            >{{ form.contenu.length }} caractères</small
-                        >
-                    </div>
-                </div>
-
-                <!-- Champ Date limite -->
-                <div class="form-field">
-                    <label class="field-label">
-                        <i class="pi pi-calendar-clock"></i>
-                        Date limite de validité
-                        <span class="text-400 text-sm ml-2">(Optionnel)</span>
-                    </label>
-                    <Calendar
+                    <label class="field-label">Date limite (optionnel)</label
+                    ><Calendar
                         v-model="form.date_limite"
                         dateFormat="dd/mm/yy"
-                        placeholder="Sélectionner une date limite"
-                        class="field-input"
+                        placeholder="Sélectionner une date"
+                        class="w-full"
                         :showIcon="true"
-                        :showButtonBar="true"
                     />
-                    <small class="field-hint">
-                        Laissez vide pour une validité illimitée. Après cette
-                        date, le communiqué ne sera plus affiché.
-                    </small>
                 </div>
-
-                <!-- Champ Publication -->
                 <div class="form-field publication-field">
-                    <div class="publication-content">
-                        <div class="publication-switch">
-                            <InputSwitch v-model="form.is_active" />
-                            <div class="publication-info">
-                                <span class="publication-label">
-                                    {{
-                                        form.is_active
-                                            ? "✅ Publication immédiate"
-                                            : "📝 Enregistrer comme brouillon"
-                                    }}
-                                </span>
-                                <small class="publication-hint">
-                                    {{
-                                        form.is_active
-                                            ? "Le communiqué sera visible sur la page d'accueil"
-                                            : "Le communiqué sera sauvegardé mais pas encore visible"
-                                    }}
-                                </small>
-                            </div>
+                    <div class="publication-switch">
+                        <InputSwitch v-model="form.is_active" />
+                        <div class="publication-info">
+                            <span class="publication-label">{{
+                                form.is_active
+                                    ? "Publication immédiate"
+                                    : "Enregistrer comme brouillon"
+                            }}</span>
                         </div>
                     </div>
                 </div>
             </div>
-
             <template #footer>
                 <div class="dialog-footer">
                     <Button
@@ -699,8 +706,8 @@ const isDateExpired = (dateLimite) => {
                         @click="dialogVisible = false"
                     />
                     <Button
-                        :label="isEditing ? 'Mettre à jour' : 'Publier'"
-                        :icon="isEditing ? 'pi pi-save' : 'pi pi-send'"
+                        :label="isEditing ? 'Mettre à jour' : 'Enregistrer'"
+                        icon="pi pi-save"
                         severity="success"
                         @click="saveCommunique"
                     />
@@ -711,310 +718,577 @@ const isDateExpired = (dateLimite) => {
 </template>
 
 <style scoped>
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Style du dialogue */
-.communique-dialog :deep(.p-dialog) {
-    border-radius: 16px;
-    overflow: hidden;
-}
-
-.communique-dialog :deep(.p-dialog-header) {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    padding: 1.5rem 2rem;
-}
-
-.communique-dialog :deep(.p-dialog-title) {
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-.communique-dialog :deep(.p-dialog-content) {
-    padding: 0;
-}
-
-.communique-dialog :deep(.p-dialog-footer) {
-    padding: 0;
-}
-
-/* Contenu du dialogue */
-.dialog-content {
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-/* Message d'aide */
-.help-message {
-    display: flex;
-    gap: 1rem;
+/* ============================================ */
+/* ⭐ CONTAINER */
+/* ============================================ */
+.page-container {
     padding: 1rem;
-    background: #f0fdf4;
-    border-radius: 12px;
-    border-left: 4px solid #10b981;
 }
 
-.help-message i {
-    color: #10b981;
-    font-size: 1.25rem;
+/* ============================================ */
+/* ⭐ EN-TÊTE */
+/* ============================================ */
+.header-card {
+    background: linear-gradient(
+        135deg,
+        var(--color-primary) 0%,
+        var(--color-primary-dark) 100%
+    );
+    border-radius: 1rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    border: none !important;
+}
+.header-card :deep(.p-card-content) {
+    padding: 1.5rem;
+}
+@media (max-width: 768px) {
+    .header-card :deep(.p-card-content) {
+        padding: 1rem;
+    }
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    color: white;
+}
+.header-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
 }
-
-.help-message div {
+.header-icon i {
+    font-size: 1.75rem;
+    color: white;
+}
+.header-text {
     flex: 1;
+    min-width: 200px;
 }
-
-.help-message strong {
-    display: block;
+.header-text h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    color: white;
+}
+.header-text p {
     font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-    color: #166534;
-}
-
-.help-message p {
-    font-size: 0.75rem;
-    color: #4b5563;
     margin: 0;
-    line-height: 1.4;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-/* Champs de formulaire */
-.form-field {
-    display: block;
-    width: 100%;
+.new-btn {
+    background: white !important;
+    color: var(--color-primary-dark) !important;
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+    font-weight: 600 !important;
+    padding: 0.65rem 1.25rem !important;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+.new-btn:hover {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+    border-color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.new-btn:focus {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5) !important;
 }
 
-.field-label {
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    .header-icon {
+        width: 3rem;
+        height: 3rem;
+    }
+    .header-icon i {
+        font-size: 1.5rem;
+    }
+    .header-text h1 {
+        font-size: 1.25rem;
+    }
+    .header-text p {
+        justify-content: center;
+    }
+    .new-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ============================================ */
+/* ⭐ TABLEAU */
+/* ============================================ */
+.desktop-view {
     display: block;
-    font-weight: 600;
+}
+.mobile-view {
+    display: none;
+}
+.table-card {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+.table-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.table-title i {
+    color: var(--color-primary);
+}
+.total-badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+    background: var(--color-primary-light);
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    color: var(--color-primary-dark);
+}
+.concour-cell,
+.date-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.concour-cell i,
+.date-cell i {
+    color: var(--color-primary);
     font-size: 0.875rem;
-    margin-bottom: 0.5rem;
-    color: #374151;
 }
-
-.field-label i {
-    color: #10b981;
-    margin-right: 0.5rem;
+.contenu-cell {
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-
-.required {
+.expired {
     color: #ef4444;
-    margin-left: 0.25rem;
-}
-
-.field-input {
-    width: 100%;
-    display: block;
-}
-
-.field-input :deep(.p-inputtext),
-.field-input :deep(.p-calendar) {
-    width: 100%;
-}
-
-.field-input :deep(.p-inputtext) {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    font-size: 0.875rem;
-}
-
-.field-textarea {
-    width: 100%;
-    display: block;
-}
-
-.field-textarea :deep(.p-textarea) {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    resize: vertical;
-}
-
-.field-hint {
-    display: block;
-    font-size: 0.7rem;
-    color: #6b7280;
-    margin-top: 0.5rem;
-}
-
-.field-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.5rem;
-}
-
-.char-count {
-    font-size: 0.7rem;
-    font-family: monospace;
-    background: #f3f4f6;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    color: #4b5563;
-}
-
-/* Champ publication */
-.publication-field {
-    background: #f9fafb;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-top: 0.5rem;
-}
-
-.publication-content {
-    display: block;
-}
-
-.publication-switch {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.publication-info {
-    flex: 1;
-}
-
-.publication-label {
-    display: block;
     font-weight: 600;
-    font-size: 0.875rem;
-    margin-bottom: 0.25rem;
-    color: #374151;
 }
-
-.publication-hint {
-    display: block;
-    font-size: 0.7rem;
-    color: #6b7280;
-}
-
-/* Footer du dialogue */
-.dialog-footer {
+.actions-cell {
     display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    padding: 1rem 2rem;
-    border-top: 1px solid #e5e7eb;
-    background: #ffffff;
+    gap: 0.25rem;
+    flex-wrap: wrap;
 }
-
-/* Dark mode */
-.dark .help-message {
-    background: #1a2e1f;
-    border-left-color: #10b981;
+.edit-btn,
+.publish-btn {
+    color: var(--color-primary) !important;
 }
-
-.dark .help-message strong {
-    color: #6ee7b7;
+.edit-btn:hover,
+.publish-btn:hover {
+    background: var(--color-primary-light) !important;
 }
-
-.dark .help-message p {
+.unpublish-btn {
+    color: #f97316 !important;
+}
+.unpublish-btn:hover {
+    background: rgba(249, 115, 22, 0.1) !important;
+}
+.delete-btn {
+    color: #ef4444 !important;
+}
+.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+}
+.download-btn {
+    color: #3b82f6 !important;
+}
+.download-btn:hover {
+    background: rgba(59, 130, 246, 0.1) !important;
+}
+.no-file {
     color: #9ca3af;
 }
 
+/* ============================================ */
+/* ⭐ MOBILE CARDS */
+/* ============================================ */
+@media (max-width: 768px) {
+    .page-container {
+        padding: 0.75rem;
+    }
+    .desktop-view {
+        display: none;
+    }
+    .mobile-view {
+        display: block;
+    }
+    .communique-card {
+        background: white;
+        border-radius: 0.75rem;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+    .dark .communique-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .dark .card-header {
+        border-bottom-color: #374151;
+    }
+    .card-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    .card-title i {
+        color: var(--color-primary);
+    }
+    .card-body {
+        margin-bottom: 0.75rem;
+    }
+    .card-row {
+        display: flex;
+        margin-bottom: 0.5rem;
+        font-size: 0.75rem;
+    }
+    .card-label {
+        width: 85px;
+        font-weight: 600;
+        color: #6b7280;
+        flex-shrink: 0;
+    }
+    .dark .card-label {
+        color: #9ca3af;
+    }
+    .card-value {
+        flex: 1;
+        word-break: break-word;
+    }
+    .card-content {
+        white-space: pre-wrap;
+        line-height: 1.4;
+    }
+    .card-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    .dark .card-actions {
+        border-top-color: #374151;
+    }
+    .download-mobile-btn {
+        color: #3b82f6 !important;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #9ca3af;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.5;
+    }
+}
+
+/* ============================================ */
+/* ⭐ DIALOGUE */
+/* ============================================ */
+.communique-dialog :deep(.p-dialog-header) {
+    background: linear-gradient(
+        135deg,
+        var(--color-primary) 0%,
+        var(--color-primary-dark) 100%
+    );
+    color: white;
+    padding: 1rem;
+}
+.communique-dialog :deep(.p-dialog-title) {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.communique-dialog :deep(.p-dialog-content) {
+    padding: 1rem;
+    overflow: visible !important;
+}
+.dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: visible !important;
+    min-width: 0 !important;
+}
+.field-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #374151;
+}
 .dark .field-label {
     color: #e5e7eb;
 }
-
-.dark .field-input :deep(.p-inputtext),
-.dark .field-textarea :deep(.p-textarea) {
-    background: #1f2937;
-    border-color: #374151;
-    color: #f3f4f6;
+.required {
+    color: #ef4444;
 }
-
-.dark .field-hint,
-.dark .char-count {
-    color: #9ca3af;
+.hidden-file-input {
+    display: none;
 }
-
-.dark .char-count {
-    background: #111827;
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #f3f4f6;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
 }
-
+.dark .file-info {
+    background: #374151;
+}
+.file-info i {
+    color: #ef4444;
+}
+.field-hint {
+    font-size: 0.65rem;
+    color: #6b7280;
+}
+.publication-field {
+    background: #f9fafb;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+}
 .dark .publication-field {
     background: #1f2937;
 }
-
-.dark .publication-label {
-    color: #f3f4f6;
+.publication-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
-
+.publication-info {
+    flex: 1;
+}
+.publication-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
 .dark .dialog-footer {
     border-top-color: #374151;
-    background: #1f2937;
 }
 
-/* Animation d'entrée */
-@keyframes fadeInUp {
+/* ⭐⭐ SELECT DANS DIALOG - SOLUTION FINALE ⭐⭐ */
+:deep(.select-in-dialog) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+:deep(.select-in-dialog .p-select-label) {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.5 !important;
+    padding: 0.75rem 2.5rem 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+    height: auto !important;
+    min-height: 44px !important;
+    text-overflow: clip !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* ⭐ Panel dans le body - contraint à la largeur du Dialog */
+:deep(.p-select-panel) {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 600px !important;
+    box-sizing: border-box !important;
+}
+
+:deep(.p-select-list-container) {
+    max-height: 250px !important;
+    overflow-y: auto !important;
+}
+
+:deep(.p-select-item) {
+    white-space: normal !important;
+    word-break: break-word !important;
+    padding: 0.75rem 1rem !important;
+    line-height: 1.5 !important;
+    min-height: 42px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-size: 0.875rem !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+@media (max-width: 640px) {
+    :deep(.p-select-panel) {
+        max-width: 90vw !important;
+    }
+    :deep(.p-select-item) {
+        font-size: 0.85rem !important;
+    }
+}
+/* ============================================ */
+/* ⭐ MOBILE */
+/* ============================================ */
+@media (max-width: 640px) {
+    :deep(.select-in-dialog .p-select-label) {
+        font-size: 0.82rem !important;
+        padding: 0.7rem 2.5rem 0.7rem 0.85rem !important;
+        min-height: 46px !important;
+        max-height: 100px !important;
+    }
+    :deep(.p-select-panel) {
+        width: 100% !important;
+        max-height: 45vh !important;
+    }
+    :deep(.p-select-item) {
+        padding: 0.85rem 1rem !important;
+        font-size: 0.85rem !important;
+        min-height: 46px !important;
+        max-width: 100% !important;
+    }
+    :deep(.p-select-filter) {
+        font-size: 0.9rem !important;
+        padding: 0.6rem 0.85rem !important;
+    }
+}
+
+/* ============================================ */
+/* ⭐ DARK MODE */
+/* ============================================ */
+.dark :deep(.p-select-item) {
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+.dark :deep(.p-select-item:hover) {
+    background: rgba(16, 185, 129, 0.12) !important;
+}
+.dark :deep(.p-select-item.p-highlight) {
+    background: rgba(16, 185, 129, 0.18) !important;
+    color: #34d399 !important;
+}
+.dark :deep(.p-select-header) {
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+.dark :deep(.p-select-filter) {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+}
+
+/* ============================================ */
+/* ⭐ BOUTONS PRIMEVUE */
+/* ============================================ */
+:deep(.p-button.p-button-success) {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+:deep(.p-button.p-button-success:hover) {
+    background: var(--color-primary-dark) !important;
+    border-color: var(--color-primary-dark) !important;
+}
+:deep(.p-button.p-button-outlined) {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+:deep(.p-button.p-button-outlined:hover) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+:deep(.p-button.p-button-text) {
+    color: var(--color-primary) !important;
+}
+:deep(.p-button.p-button-text:hover) {
+    background: var(--color-primary-light) !important;
+}
+:deep(.p-checkbox .p-checkbox-box.p-highlight) {
+    border-color: var(--color-primary) !important;
+    background: var(--color-primary) !important;
+}
+:deep(.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider) {
+    background: var(--color-primary) !important;
+}
+:deep(
+        .p-inputswitch.p-inputswitch-checked:not(.p-disabled):hover
+            .p-inputswitch-slider
+    ) {
+    background: var(--color-primary-dark) !important;
+}
+:deep(.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+:deep(.p-tag.p-tag-success) {
+    background: var(--color-primary-light) !important;
+    color: var(--color-primary-dark) !important;
+}
+:deep(.p-badge.p-badge-success) {
+    background: var(--color-primary) !important;
+}
+:deep(.p-datatable .p-datatable-tbody > tr:hover) {
+    background: var(--color-primary-light) !important;
+}
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+    border-bottom: 2px solid var(--color-primary-light);
+}
+:deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+/* ============================================ */
+/* ⭐ ANIMATIONS */
+/* ============================================ */
+@keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
-
-.p-card {
-    animation: fadeInUp 0.3s ease-out;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .dialog-content {
-        padding: 1.5rem;
-        gap: 1rem;
-    }
-
-    .field-input :deep(.p-inputtext),
-    .field-textarea :deep(.p-textarea) {
-        padding: 0.625rem 0.875rem;
-    }
-
-    .publication-switch {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-    }
-
-    .dialog-footer {
-        padding: 1rem 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .dialog-footer .p-button {
-        flex: 1;
-    }
-
-    .communique-dialog :deep(.p-dialog) {
-        margin: 1rem;
-        width: calc(100vw - 2rem) !important;
-    }
-
-    .communique-dialog :deep(.p-dialog-header) {
-        padding: 1rem 1.5rem;
-    }
-
-    .communique-dialog :deep(.p-dialog-title) {
-        font-size: 1.25rem;
-    }
+.header-card,
+.table-card {
+    animation: fadeIn 0.4s ease-out;
 }
 </style>

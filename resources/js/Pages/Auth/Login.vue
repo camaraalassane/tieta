@@ -44,7 +44,7 @@ const submit = () => {
                             <i class="pi pi-check-circle text-3xl"></i>
                         </div>
                         <span class="text-2xl font-black tracking-tighter"
-                            >Recrutement DTTIA</span
+                            >Recrutement FAMa</span
                         >
                     </div>
 
@@ -66,7 +66,7 @@ const submit = () => {
                                     class="bg-white dark:bg-gray-800 rounded-2xl p-2"
                                 >
                                     <img
-                                        src="/Images/DTTIA.jpeg"
+                                        src="/Images/Fama.png"
                                         alt="DTTIA"
                                         class="w-64 h-64 object-cover rounded-2xl shadow-2xl transform group-hover:scale-105 transition-transform duration-500"
                                     />
@@ -124,7 +124,7 @@ const submit = () => {
                                     class="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-30"
                                 ></div>
                                 <img
-                                    src="/Images/DTTIA.jpeg"
+                                    src="/Images/Fama.png"
                                     alt="DTTIA"
                                     class="h-24 w-auto relative rounded-2xl shadow-xl border-4 border-white dark:border-gray-800"
                                 />

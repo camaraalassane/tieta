@@ -18,8 +18,8 @@ class CloseExpiredConcours extends Command
     {
         // ATTENTION : Vérifie si c'est 'statut' ou 'status' dans ta base de données.
         // D'après tes routes précédentes, c'est 'statut'.
-        $query = Concour::where('statut', 'Actif') 
-                        ->where('date_limite', '<', Carbon::now());
+        $query = Concour::where('statut', 'Actif')
+            ->whereDate('date_limite', '<', Carbon::today());
 
         $count = $query->count();
 
