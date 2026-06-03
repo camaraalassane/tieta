@@ -16,6 +16,7 @@ const props = defineProps({
     perPage: Number,
     total_superadmin: Number,
     total_admin: Number,
+    total_gerant: Number,
     total_operator: Number,
 });
 
@@ -64,11 +65,11 @@ const roles = props.roles?.map((role) => ({
     code: role.name,
 }));
 
-// ⭐ Statistiques CORRIGÉES
 const stats = computed(() => ({
     total: props.users?.total || 0,
     superadmin: props.total_superadmin || 0,
     admin: props.total_admin || 0,
+    gerant: props.total_gerant || 0,
     operator: props.total_operator || 0,
 }));
 
@@ -102,18 +103,16 @@ watch(
         if (newVal !== oldVal) performSearch();
     },
 );
-// ⭐ Filtrer par rôle avec recherche automatique
+
 const filterByRole = (role) => {
     data.roleFilter = role;
-    // Réinitialiser la recherche
     data.params.search = "";
-    // Recharger avec le filtre de rôle
     router.get(
         route("user.index"),
         {
             role: role === "all" ? null : role,
-            search: "", // Réinitialiser la recherche
-            page: 1, // Retour à la première page
+            search: "",
+            page: 1,
         },
         { preserveState: true, preserveScroll: true },
     );
@@ -137,7 +136,7 @@ const filterByRole = (role) => {
                 :title="props.title"
             />
 
-            <!-- ⭐ En-tête dynamique -->
+            <!-- ⭐ En-tête -->
             <div
                 class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
             >
@@ -152,7 +151,6 @@ const filterByRole = (role) => {
                         {{ stats.total }} utilisateurs au total
                     </p>
                 </div>
-                <!-- ⭐ Bouton Nouvel utilisateur - Dynamique -->
                 <Button
                     v-if="hasAccess('create user')"
                     label="Nouvel utilisateur"
@@ -163,7 +161,9 @@ const filterByRole = (role) => {
             </div>
 
             <!-- ⭐ Statistiques par rôle -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+            >
                 <!-- Superadmins -->
                 <div
                     class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-100 dark:border-purple-800/30 cursor-pointer transition-all hover:shadow-md"
@@ -211,6 +211,32 @@ const filterByRole = (role) => {
                             </p>
                             <p class="text-2xl font-bold stat-text-admin">
                                 {{ stats.admin }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Gérants -->
+                <div
+                    class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/30 cursor-pointer transition-all hover:shadow-md"
+                    :class="{
+                        'ring-2 ring-amber-500': data.roleFilter === 'gerant',
+                    }"
+                    @click="filterByRole('gerant')"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center text-white"
+                        >
+                            <i class="pi pi-briefcase"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Gérants
+                            </p>
+                            <p
+                                class="text-2xl font-bold text-amber-600 dark:text-amber-400"
+                            >
+                                {{ stats.gerant }}
                             </p>
                         </div>
                     </div>
@@ -275,6 +301,15 @@ const filterByRole = (role) => {
                         @click="filterByRole('admin')"
                     />
                     <Button
+                        label="Gérants"
+                        class="p-button-text p-button-sm"
+                        :class="{
+                            'text-amber-500 font-semibold':
+                                data.roleFilter === 'gerant',
+                        }"
+                        @click="filterByRole('gerant')"
+                    />
+                    <Button
                         label="Candidats"
                         class="p-button-text p-button-sm"
                         :class="{
@@ -312,19 +347,23 @@ const filterByRole = (role) => {
                 showGridlines
             >
                 <Column field="name" header="Nom" style="width: 20%">
-                    <template #body="sp">
-                        <div class="font-medium">{{ sp.data.name }}</div>
-                    </template>
+                    <template #body="sp"
+                        ><div class="font-medium">
+                            {{ sp.data.name }}
+                        </div></template
+                    >
                 </Column>
                 <Column field="prenom" header="Prénom" style="width: 20%">
-                    <template #body="sp">
-                        <div>{{ sp.data.prenom || "-" }}</div>
-                    </template>
+                    <template #body="sp"
+                        ><div>{{ sp.data.prenom || "-" }}</div></template
+                    >
                 </Column>
                 <Column field="email" header="Email" style="width: 30%">
-                    <template #body="sp">
-                        <div class="text-sm">{{ sp.data.email }}</div>
-                    </template>
+                    <template #body="sp"
+                        ><div class="text-sm">
+                            {{ sp.data.email }}
+                        </div></template
+                    >
                 </Column>
                 <Column header="Rôle(s)" style="width: 20%">
                     <template #body="sp">
@@ -337,6 +376,8 @@ const filterByRole = (role) => {
                                     'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300':
                                         role.name === 'superadmin',
                                     'role-badge-admin': role.name === 'admin',
+                                    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300':
+                                        role.name === 'gerant',
                                     'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300':
                                         role.name === 'operator',
                                 }"
@@ -347,7 +388,9 @@ const filterByRole = (role) => {
                                         ? "Candidat"
                                         : role.name === "superadmin"
                                           ? "Superadmin"
-                                          : "Administrateur"
+                                          : role.name === "gerant"
+                                            ? "Gérant"
+                                            : "Administrateur"
                                 }}
                             </span>
                         </div>
@@ -434,97 +477,72 @@ const filterByRole = (role) => {
         </div>
     </app-layout>
 </template>
+
 <style scoped>
-/* ⭐ Icône thème */
 .theme-text-primary {
     color: var(--color-primary) !important;
 }
-
-/* ⭐ Bouton primaire */
 .btn-primary {
     background: var(--color-primary) !important;
     border: none !important;
     color: white !important;
     transition: all 0.2s ease;
 }
-
 .btn-primary:hover {
     background: var(--color-primary-dark) !important;
     transform: translateY(-1px);
 }
-
-/* ⭐ Bouton outlined */
 .btn-outlined-primary {
     color: var(--color-primary) !important;
     border-color: var(--color-primary) !important;
     background: transparent !important;
 }
-
 .btn-outlined-primary:hover {
     background: var(--color-primary-light) !important;
     color: var(--color-primary-dark) !important;
 }
-
-/* ⭐ Carte statistique Admin - Dynamique */
 .stat-card-admin {
     background: var(--color-primary-light);
     border-color: var(--color-primary-light);
 }
-
 .dark .stat-card-admin {
     background: rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.3);
 }
-
 .stat-icon-admin {
     width: 2.5rem;
     height: 2.5rem;
     background: var(--color-primary);
 }
-
 .stat-text-admin {
     color: var(--color-primary-dark);
 }
-
 .dark .stat-text-admin {
     color: var(--color-primary-light);
 }
-
-/* ⭐ Badge rôle Admin - Dynamique */
 .role-badge-admin {
     background: var(--color-primary-light);
     color: var(--color-primary-dark);
 }
-
-/* ⭐ Filtre actif */
 .filter-btn-active {
     color: var(--color-primary) !important;
     font-weight: 600 !important;
 }
-
-/* ⭐ Bouton édition */
 .action-edit-btn {
     color: var(--color-primary) !important;
 }
-
 .action-edit-btn:hover {
     color: var(--color-primary-dark) !important;
     background: var(--color-primary-light) !important;
 }
-
-/* ⭐ Focus */
 :deep(.p-inputtext:focus) {
     border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 2px var(--color-primary-light) !important;
 }
-
-/* ⭐ Pagination */
 :deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
     background: var(--color-primary) !important;
     border-color: var(--color-primary) !important;
 }
-
-/* ⭐ Datatable hover */
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
     background: var(--color-primary-light) !important;
 }
