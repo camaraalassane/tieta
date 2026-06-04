@@ -32,7 +32,7 @@ class UserController extends Controller implements HasMiddleware
     {
         $currentUser = Auth::user();
 
-        if (!$currentUser || !$currentUser->hasAnyRole(['superadmin', 'admin'])) {
+       if (!$currentUser || !$currentUser->hasAnyRole(['superadmin', 'admin', 'gerant'])) {
             abort(403, "Vous n'avez pas l'autorisation d'accéder à cette page.");
         }
 
@@ -64,7 +64,7 @@ class UserController extends Controller implements HasMiddleware
             }
         }
 
-        $userRole = $currentUser->roles->pluck('name')[0] ?? null;
+        $userRole = $currentUser->roles->pluck('name')[0] ?? null; 
         $roles = Role::all();
 
         if ($userRole !== 'superadmin') {
@@ -84,6 +84,7 @@ class UserController extends Controller implements HasMiddleware
             'roles'             => $roles,
             'total_superadmin'  => User::role('superadmin')->count(),
             'total_admin'       => User::role('admin')->count(),
+            'total_gerant'      => User::role('gerant')->count(),  
             'total_operator'    => User::role('operator')->count(),
         ]);
     }
