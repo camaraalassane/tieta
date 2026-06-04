@@ -17,3 +17,10 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Ignorer les dossiers du serveur
+/public/Images/
+/storage/
+/public/build/
+/public/demo/
+.env.local*
